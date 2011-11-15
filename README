@@ -1,0 +1,75 @@
+
+       ********************** FUN WITH FISH *********************
+
+There are lots of programs for lots of platforms to make fish swim in the
+background of your screen.  This is a modification of an old one called
+xfish (also called Xaquarium), that I have added more features to.
+
+To not confuse you (or confuse you more) I will call this modified xfish
+"xfishtank". ['A rose by any other name...' and all that]
+
+
+How is this different?  I started with you basic xfish, and I kept the
+bubbles (actually I re-wrote some of the bubble code, but it LOOKS the same).
+I changed the rest of the code to allow any number of multicolored fish to
+swim around.  Each fish can have up to 255 colors, but on startup the program
+takes all the colors from all the fish, and squeezes them down to all fit
+into the default colormap as best it can.  Ant fish can be any size in
+width and height.  To make them look more like they are swimming, fish are
+animated (Very simple 2 frame animation) [I got this idea from watching
+the AfterDark fish on the Mac].  Fish CANNOT swim over each other, they
+will turn around if they are about to collide.  I had a version that
+had fish swiming over each other, it was WAY to slow to be something to run
+on your background while working, so I deleted it.
+
+All the command line options are the same as the old xfish, type xfishtank -help
+to see them.
+
+
+       ********************** TROUBLE WITH FISH *********************
+
+You will no doubt notice that this program is distributed with only a three
+dumb looking fish.  This is because there is a scarcity of good fish pictures
+in the world, and they are all protected by lawyers.  Here is the solution
+I propose.
+
+Any of you with talent can edit up any pictures you want, somehow get them
+into GIF format, and import them into your xfishtank.  The program
+"giftofish" that I am supplying here takes as input any 2 GIF files,
+and creates a xfishtank header file for that fish.  The 2 files must have
+the same width and height, and must both have the same background color.
+The pictures are assumed to be the two frames of an animated fish swiming right.
+Put this new header file into your fishmaps directory, edit the FishList
+file to add the prefix of that header file, and increment the total fishcount
+on the first line of that file.  Now recompile xfishtank, and your new fish
+will be used.
+
+Other fish sources:
+	The AfterDark fish on the Mac are beautiful.  If you
+have already shelled out the money to Berkely Systems Software to buy those
+fish, and you also want to see them on your UNIX box, here is what you do.
+If you can transfer the Mac fish files to UNIX, run the "gofish" program 
+supplied here, it will write out the fish into two intermediate files.
+The files will look strange, they are my own format, just feed them to the
+giftofish program (which understands that format), and it will create a
+fish header file for you.
+	OpenWindows 3.0 comes with some fish pictures.  If you have purchased
+Openwindows, and want to use those pictures, the program "rasttofish" 
+supplied here will read one of their sun raster fish pictures, and produce
+a xfishtank header file for it.  Note, the Openwindows fish are only one
+frame, so the won't be animated.
+
+
+As usual, mail any problems, questions, complaints, reccommendations, and
+cookies to me.
+
+Eric Bina
+508 E. Michigan, #35
+Urbana, IL 61801
+
+ebina@ncsa.uiuc.edu
+
+(217)344-9101
+Work(217)244-6133
+
+

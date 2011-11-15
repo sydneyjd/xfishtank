@@ -1,0 +1,7 @@
+
+Read any 2 GIF files.  Tries to make an xfishtank file.  The images are assumed
+to be the 2 different frames of an animated fish swiming from left to right.
+
+The background color of both pictures (as defined by the upper left pixel)
+must be identical.  Both images must have the same width and height.
+

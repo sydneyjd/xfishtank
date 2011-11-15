@@ -1,0 +1,22 @@
+       EXTRA_INCLUDES = -I. -I./fishmaps
+LOCAL_LIBRARIES = $(XLIB)
+        DEPLIBS = $(DEPXLIB)
+  SYS_LIBRARIES = -lm
+
+           SRCS = xfish.c
+           OBJS = xfish.o
+
+ComplexProgramTarget(xfishtank)
+
+makeh: makeh.c
+	$(RM) $@
+	$(CC) -o $@ makeh.c $(LDOPTIONS) $(LDLIBS) $(EXTRA_LOAD_FLAGS)
+
+xfishy.h: makeh FishList
+	./makeh > xfishy.h
+
+xfish.o: xfishy.h
+
+clean::
+	$(RM) makeh xfishy.h
+

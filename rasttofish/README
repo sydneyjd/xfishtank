@@ -1,0 +1,5 @@
+
+Read an Openwindows fish, and write a xfishtank fish.  Reads a sun raster
+mirrors it on Y to make it face right, duplicates it so the two frames
+are identical, and makes an xfishtank file.
+

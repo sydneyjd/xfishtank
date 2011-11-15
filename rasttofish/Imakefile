@@ -1,0 +1,6 @@
+LOCAL_LIBRARIES = 
+
+SRCS = rasttofish.c
+OBJS = rasttofish.o
+
+ComplexProgramTarget(rasttofish)

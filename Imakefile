@@ -2,15 +2,12 @@
 LOCAL_LIBRARIES = $(XLIB)
         DEPLIBS = $(DEPXLIB)
   SYS_LIBRARIES = -lm
+    CDEBUGFLAGS = -g
 
-           SRCS = xfish.c
-           OBJS = xfish.o
+           SRCS = xfish.c medcut.c read.c gifread.c
+           OBJS = xfish.o medcut.o read.o gifread.o
 
 ComplexProgramTarget(xfishtank)
-
-makeh: makeh.c
-	$(RM) $@
-	$(CC) -o $@ makeh.c $(LDOPTIONS) $(LDLIBS) $(EXTRA_LOAD_FLAGS)
 
 xfishy.h: makeh FishList
 	./makeh > xfishy.h

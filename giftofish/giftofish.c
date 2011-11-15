@@ -1,6 +1,8 @@
 #include <stdio.h>
 
 #define MAXCOLORS 256
+#define COLS_PER_LINE	7
+#define NUMS_PER_LINE	16
 
 extern unsigned char *ReadGifBitmap();
 
@@ -389,6 +391,7 @@ char *argv[];
 	int width1, height1, width2, height2;
 	char outfile[256];
 	char *outname;
+	int num_cnt;
 
 	if (argc < 3)
 	{
@@ -498,6 +501,7 @@ char *argv[];
 	fprintf(ofd, "#define %s_colors\t\t%d\n", outname, fcnt);
 	fprintf(ofd, "#define %s_back\t\t%d\n", outname, (int)data1[0]);
 	fprintf(ofd, "int\t%s_reds[] = {", outname);
+	num_cnt = 0;
 	for (i=0; i<fcnt; i++)
 	{
 		if (i == (fcnt - 1))
@@ -507,9 +511,15 @@ char *argv[];
 		else
 		{
 			fprintf(ofd, "%d, ", fcolrs[i].red);
+			if (++num_cnt >= COLS_PER_LINE)
+			{
+				fprintf(ofd, "\n");
+				num_cnt = 0;
+			}
 		}
 	}
 	fprintf(ofd, "int\t%s_greens[] = {", outname);
+	num_cnt = 0;
 	for (i=0; i<fcnt; i++)
 	{
 		if (i == (fcnt - 1))
@@ -519,9 +529,15 @@ char *argv[];
 		else
 		{
 			fprintf(ofd, "%d, ", fcolrs[i].green);
+			if (++num_cnt >= COLS_PER_LINE)
+			{
+				fprintf(ofd, "\n");
+				num_cnt = 0;
+			}
 		}
 	}
 	fprintf(ofd, "int\t%s_blues[] = {", outname);
+	num_cnt = 0;
 	for (i=0; i<fcnt; i++)
 	{
 		if (i == (fcnt - 1))
@@ -531,18 +547,35 @@ char *argv[];
 		else
 		{
 			fprintf(ofd, "%d, ", fcolrs[i].blue);
+			if (++num_cnt >= COLS_PER_LINE)
+			{
+				fprintf(ofd, "\n");
+				num_cnt = 0;
+			}
 		}
 	}
 	fprintf(ofd, "unsigned char\t%s_rasterA[] = {\n", outname);
+	num_cnt = 0;
 	for (i=0; i<(width1 * height1); i++)
 	{
 		fprintf(ofd, "0x%02x,", data1[i]);
+		if (++num_cnt >= NUMS_PER_LINE)
+		{
+			fprintf(ofd, "\n");
+			num_cnt = 0;
+		}
 	}
 	fprintf(ofd, "};\n");
 	fprintf(ofd, "unsigned char\t%s_rasterB[] = {\n", outname);
+	num_cnt = 0;
 	for (i=0; i<(width1 * height1); i++)
 	{
 		fprintf(ofd, "0x%02x,", data2[i]);
+		if (++num_cnt >= NUMS_PER_LINE)
+		{
+			fprintf(ofd, "\n");
+			num_cnt = 0;
+		}
 	}
 	fprintf(ofd, "};\n");
 

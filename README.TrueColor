@@ -1,0 +1,28 @@
+
+When I switched to TrueColor on my Linux box, I found that xfishtank just crash
+with a segmentation fault, how frustrating. Digging into the code, I found
+that it only support depths 1-8. Thanks to John Cwikla's article:
+
+    The X Color Context: Color Management For (Almost) Any Occasion
+     in The X Advisor: June 1995 - Vol 1 No 1. http://www.unx.com/DD/advisor
+
+I got xfishtank to support TrueColor. I've only tested it on Linux running
+XFree86-3.1.2 in 16 and 24 bpp. If anybody can get it to work on other
+platform or other video modes, please drop me a line.
+
+I have no idea what this version will do in DirectColor modes because I have
+no way of testing. This version ignores the -C (color limit) flag when running
+in > 8 bpp modes. There's no need for limitting the number of color in
+TrueColor modes right?
+
+You may use, redistribute this version as long as you keep all the READMEs and
+copyright stuff with the code. This is to ensure credit goes to those deserve.
+After all, I did not write this code. I only add TrueColor support.
+
+There no warranty of any kind. Use this code at your own risk. Don't blame me
+for any damage it may cause. Bugfixes and comments are welcome.
+
+Enjoy,
+
+TJ Phan
+phan@aur.alcatel.com

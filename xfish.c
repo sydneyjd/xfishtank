@@ -11,6 +11,8 @@
 
   *	Ported to monocrome by Jonathan Greenblatt (jonnyg@rover.umd.edu)
 
+  *     05/02/1996 Added TrueColor support by TJ Phan (phan@aur.alcatel.com)
+
   TODO:
 
 	Parameter parsing needs to be redone.
@@ -19,25 +21,35 @@
   	fish types.  Broke monocrome in the process.
   	Eric Bina (ebina@ncsa.uiuc.edu)
 
+  *	1992 added extra color remapping control options, as well as ways
+	to let the fish swim on the root window, or an image of the users
+	choice.  Eric Bina (ebina@ncsa.uiuc.edu)
+
 */
 
-#ifndef HPUX
+#ifndef hpux
 #include <sys/time.h>
 #else
 #include <time.h>
 #endif
 
 #include <stdio.h>
+#ifdef sgi
+#define _BSD_SIGNALS
+#endif
 #include <signal.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <malloc.h>
 
+#include "vroot.h"
 #include "xfishy.h"
 #include "bubbles.h"
+#include "medcut.h"
 
 /* constants are based on rand(3C) returning an integer between 0 and 32767 */
 
-#if defined(ultrix) || defined(sun)
+#if defined(ultrix) || defined(sun) || defined(linux)
 #define  RAND_I_1_16   134217728
 #define  RAND_F_1_8    268435455.875
 #define  RAND_I_1_4    536870911
@@ -52,6 +64,10 @@
 #define  RAND_I_3_4   24575
 #define  RAND_F_MAX   32767.0
 #endif
+
+
+extern unsigned char *ReadBitmap();
+
 
 /* externals for pixmap and bimaps from xfishy.h */
 
@@ -83,6 +99,14 @@ char       *yess[] = {"yes", "Yes", "YES", "on", "On", "ON"};
 char       *pname,		/* program name from argv[0] */
             sname[64],		/* host:display specification */
             cname[64];		/* colorname specification */
+char	    picname[256];	/* name of the background picture file */
+int         *Allocated;		/* mark the used colors */
+int         AllocCnt;		/* count number of colors used */
+int         mlimit = 0;		/* num colors to median cut to. 0 = no limit */
+int         climit = 0;		/* limit on color use. 0 = no limit */
+int         DoubleBuf = 0;	/* Should we use double buffering */
+int         Overlap = 0;	/* Should fish swim over each other */
+int         DoClipping = 0;	/* Should clip masks be used. */
 int         blimit = 32,	/* bubble limit */
             flimit = 10,	/* fish limit */
             pmode = 1,		/* pop mode, (1 for lower, 0 for raise) */
@@ -91,6 +115,10 @@ int         blimit = 32,	/* bubble limit */
             screen,		/* Default screen of this display */
 	    Init_B,
 	    *cmap;		/* Initialize bubbles with random y value */
+int	    Pwidth;		/* width of background picture */
+int	    Pheight;		/* height of background picture */
+int	    Pcnt;		/* number of colors in background picture */
+unsigned char *Pdata;		/* data from background picture */
 double      rate = 0.2,		/* update interval in seconds */
             smooth = 0.2;	/* smoothness increment multiplier */
 bubble     *binfo;		/* bubble info structures, allocated 
@@ -103,10 +131,21 @@ XImage     *xfishB[NUM_FISH][3]; /* fish pixmaps (1 is left-fish, 2 is
 				  * right-fish) */
 Pixmap      pfishA[NUM_FISH][3];
 Pixmap      pfishB[NUM_FISH][3];
+
+Pixmap      mfishA[NUM_FISH][3]; /* masking pixmaps for fish to use as */
+Pixmap      mfishB[NUM_FISH][3]; /*  clipmasks */
+
+Pixmap      PicMap;		/* pixmap for background picture */
+
+Pixmap      PixBuf;		/* Pixmap buffer for double buffering */
+Pixmap      ClipBuf;		/* Clipmask buffer for double buffering */
+
 Pixmap      xbubbles[9];	/* bubbles bitmaps (1 to 8, by size in pixels)*/
 Window      wid;		/* aqaurium window */
 unsigned long white, black,bcolor;
 Colormap    colormap;
+GC          c0gc, cpgc;		/* GCs to operateon the Clipmask buffer */
+GC          pgc;
 GC          gc,
             bgc;
 
@@ -141,11 +180,24 @@ parse(argc, argv)
     pname = argv[0];
     strcpy(sname, getenv("DISPLAY"));
     strcpy(cname, "MediumAquamarine");
+    picname[0] = '\0';
 
     if ((p = XGetDefault(Dpy, pname, "BubbleLimit")) != NULL)
 	blimit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "ColorLimit")) != NULL)
+	climit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "MedianCutLimit")) != NULL)
+	mlimit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "DoClipping")) != NULL)
+	DoClipping = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "DoubleBuffer")) != NULL)
+	DoubleBuf = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "Overlap")) != NULL)
+	Overlap = atoi(p);
     if ((p = XGetDefault(Dpy, pname, "Color")) != NULL)
 	strcpy(cname, p);
+    if ((p = XGetDefault(Dpy, pname, "Picture")) != NULL)
+	strcpy(picname, p);
     if ((p = XGetDefault(Dpy, pname, "FishLimit")) != NULL)
 	flimit = atoi(p);
     if ((p = XGetDefault(Dpy, pname, "IncMult")) != NULL)
@@ -157,13 +209,31 @@ parse(argc, argv)
 	    if (strcmp(p, yess[i]) == 0)
 		pmode = 0;
 
-    while ((c = getopt(argc, argv, "b:c:f:i:r:s")) != EOF) {
+    while ((c = getopt(argc, argv, "dDob:C:c:p:m:f:i:r:s")) != EOF) {
 	switch (c) {
+	case 'd':
+	    DoClipping = 1;
+	    break;
+	case 'D':
+	    DoubleBuf = 1;
+	    break;
+	case 'o':
+	    Overlap = 1;
+	    break;
 	case 'b':
 	    blimit = atoi(optarg);
 	    break;
+	case 'C':
+	    climit = atoi(optarg);
+	    break;
+	case 'm':
+	    mlimit = atoi(optarg);
+	    break;
 	case 'c':
 	    strcpy(cname, optarg);
+	    break;
+	case 'p':
+	    strcpy(picname, optarg);
 	    break;
 	case 'f':
 	    flimit = atoi(optarg);
@@ -178,25 +248,172 @@ parse(argc, argv)
 	    pmode = 0;
 	    break;
 	case '?':
-	    fprintf(stderr, "usage: %s [-b limit][-c color][-f limit][-i mult][-r rate][-s][host:display]\n", pname);
+	    fprintf(stderr, "usage: %s\n", pname);
+	    fprintf(stderr, "\t\t[-c color]  background color\n");
+	    fprintf(stderr, "\t\t[-b limit]  number of bubbles (default 32)\n");
+	    fprintf(stderr, "\t\t[-f limit]  number of fish (default 10)\n");
+	    fprintf(stderr, "\t\t[-i mult]   move interval (default 0.2)\n");
+	    fprintf(stderr, "\t\t[-r rate]   move frequency (default 0.2)\n");
+	    fprintf(stderr, "\t\t[-m num]    median cut to this many colors\n");
+	    fprintf(stderr, "\t\t[-C num]    use only this many color cells\n");
+	    fprintf(stderr, "\t\t[-d]        clip fish, swim on root window\n");
+	    fprintf(stderr, "\t\t[-p file]   fish swim on picture in file\n");
+	    fprintf(stderr, "\t\t[host:display]\n");
 	    exit(1);
 	}
     }
 
     if (optind < argc)
 	strcpy(sname, argv[optind]);
+
+	/*
+	 * DoubleBuf is only useful if we are doing clipping on our
+	 * own background picture, otherwise turn it off.
+	 */
+	if ((DoubleBuf)&&((!DoClipping)||(picname[0] == '\0')))
+	{
+		DoubleBuf = 0;
+	}
 }
 
+
+void
+erasefish(f, x, y, d)
+	fish *f;
+	int x, y, d;
+{
+	/*
+	 * for something as small as a bubble, it was never worth the
+	 * effort of using clipmasks to only turn of the bubble itself, so
+	 * we just clear the whole rectangle.
+	 */
+	XClearArea(Dpy, wid, x, y, rwidth[f->type], rheight[f->type], False);
+/*
+	XGCValues   gcv;
+
+	if (f->frame)
+	{
+		gcv.foreground = cmap[0];
+		gcv.fill_style = FillTiled;
+		gcv.fill_style = FillSolid;
+		gcv.tile = pfishB[f->type][d];
+		gcv.ts_x_origin = f->x;
+		gcv.ts_y_origin = f->y;
+		gcv.clip_mask = mfishB[f->type][d];
+		gcv.clip_x_origin = x;
+		gcv.clip_y_origin = y;
+		XChangeGC(Dpy, gc, GCForeground | GCClipMask |
+			GCTile | GCTileStipXOrigin | GCTileStipYOrigin |
+			GCFillStyle | GCClipXOrigin | GCClipYOrigin,
+			&gcv);
+		XCopyPlane(Dpy, mfishB[f->type][d], wid, gc, 0, 0,
+			rwidth[f->type], rheight[f->type],
+			x, y, (unsigned long)1);
+	}
+	else
+	{
+		gcv.foreground = cmap[0];
+		gcv.fill_style = FillTiled;
+		gcv.fill_style = FillSolid;
+		gcv.tile = pfishA[f->type][d];
+		gcv.ts_x_origin = f->x;
+		gcv.ts_y_origin = f->y;
+		gcv.clip_mask = mfishA[f->type][d];
+		gcv.clip_x_origin = x;
+		gcv.clip_y_origin = y;
+		XChangeGC(Dpy, gc, GCForeground | GCClipMask |
+			GCTile | GCTileStipXOrigin | GCTileStipYOrigin |
+			GCFillStyle | GCClipXOrigin | GCClipYOrigin,
+			&gcv);
+		XCopyPlane(Dpy, mfishA[f->type][d], wid, gc, 0, 0,
+			rwidth[f->type], rheight[f->type],
+			x, y, (unsigned long)1);
+	}
+*/
+}
+
+
+/*
+ * Just places a fish.  Normally this is all you need for animation, since
+ * placeing the fish places an entire rectangle which erases most of the old
+ * fish (the rest being cleaned up by the function that called putfish.
+ * If DoClipping is set, this function is only called when placing a new
+ * fish, otherwise newfish is called.
+ */
 void
 putfish(f)
 	fish *f;
 {
+	XGCValues   gcv;
+
 	if (f->frame)
 	{
+		/*
+		 * If we have a pixmap of the fish use it, otherwise use
+		 * the XImage of the fish.  In reality we will never use
+		 * the XImage since X dies if the pixmap create failed
+		 */
 		if (pfishA[f->type][f->d])
 		{
-			XCopyArea(Dpy, pfishA[f->type][f->d], wid, gc, 0, 0,
-				rwidth[f->type], rheight[f->type], f->x, f->y);
+			/*
+			 * Clipping overrides background picture because
+			 * the clipping prevents the drawing of any background
+			 * anyway.
+			 * DoClipping says just print a fish leaving the
+			 * background unchanged.
+			 * If there is a background picture, we use a buffer
+			 * to prevent flashing, we combine the background
+			 * picture and the fish, and then copy the
+			 * whole rectangle in.
+			 * Default is just copy in fish in with a background
+			 * color.
+			 */
+			if (DoClipping)
+			{
+				gcv.clip_mask = mfishA[f->type][f->d];
+				gcv.clip_x_origin = f->x;
+				gcv.clip_y_origin = f->y;
+				XChangeGC(Dpy, gc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+				XCopyArea(Dpy, pfishA[f->type][f->d], wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
+			else if (picname[0] != '\0')
+			{
+				gcv.fill_style = FillTiled;
+				gcv.tile = PicMap;
+				gcv.ts_x_origin = -(f->x);
+				gcv.ts_y_origin = -(f->y);
+				gcv.clip_mask = None;
+				XChangeGC(Dpy, pgc, (GCFillStyle |
+					GCTile | GCTileStipXOrigin |
+					GCTileStipYOrigin | GCClipMask),
+					&gcv);
+				XFillRectangle(Dpy, PixBuf, pgc, 0, 0,
+					rwidth[f->type], rheight[f->type]);
+
+				gcv.clip_mask = mfishA[f->type][f->d];
+				gcv.clip_x_origin = 0;
+				gcv.clip_y_origin = 0;
+				XChangeGC(Dpy, pgc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+				XCopyArea(Dpy, pfishA[f->type][f->d],PixBuf,pgc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					0, 0);
+
+				XCopyArea(Dpy, PixBuf, wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
+			else
+			{
+				XCopyArea(Dpy, pfishA[f->type][f->d], wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
 		}
 		else
 		{
@@ -207,10 +424,57 @@ putfish(f)
 	}
 	else
 	{
+		/*
+		 * same as the above, only for the second frame of animation
+		 */
 		if (pfishB[f->type][f->d])
 		{
-			XCopyArea(Dpy, pfishB[f->type][f->d], wid, gc, 0, 0,
-				rwidth[f->type], rheight[f->type], f->x, f->y);
+			if (DoClipping)
+			{
+				gcv.clip_mask = mfishB[f->type][f->d];
+				gcv.clip_x_origin = f->x;
+				gcv.clip_y_origin = f->y;
+				XChangeGC(Dpy, gc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+				XCopyArea(Dpy, pfishB[f->type][f->d], wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
+			else if (picname[0] != '\0')
+			{
+				gcv.fill_style = FillTiled;
+				gcv.tile = PicMap;
+				gcv.ts_x_origin = -(f->x);
+				gcv.ts_y_origin = -(f->y);
+				gcv.clip_mask = None;
+				XChangeGC(Dpy, pgc, (GCFillStyle |
+					GCTile | GCTileStipXOrigin |
+					GCTileStipYOrigin | GCClipMask),
+					&gcv);
+				XFillRectangle(Dpy, PixBuf, pgc, 0, 0,
+					rwidth[f->type], rheight[f->type]);
+
+				gcv.clip_mask = mfishB[f->type][f->d];
+				gcv.clip_x_origin = 0;
+				gcv.clip_y_origin = 0;
+				XChangeGC(Dpy, pgc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+				XCopyArea(Dpy, pfishB[f->type][f->d],PixBuf,pgc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					0, 0);
+
+				XCopyArea(Dpy, PixBuf, wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
+			else
+			{
+				XCopyArea(Dpy, pfishB[f->type][f->d], wid, gc,
+					0, 0, rwidth[f->type], rheight[f->type],
+					f->x, f->y);
+			}
 		}
 		else
 		{
@@ -219,6 +483,352 @@ putfish(f)
 		}
 		f->frame = 1;
 	}
+}
+
+
+/*
+ * This function can only be called if DoClipping is True.  It is used to
+ * move a clipmasked fish.  First the area under the fish is cleared,
+ * and then the new fish is masked in.
+ * The parameters x, y, amd d are from the old fish that is being
+ * erased before the new fish is drawn.
+ */
+void
+movefish(f, x, y, d)
+	fish *f;
+	int x, y, d;
+{
+	XGCValues   gcv;
+	int bx, by, bw, bh;
+
+	/*
+	 * If we are going to double buffer, we need to find the bounding
+	 * rectangle of the overlap of the bounding rectangles of the old
+	 * and the new fish.
+	 */
+	if (DoubleBuf)
+	{
+		if (x < f->x)
+		{
+			bx = x;
+			bw = f->x - x + rwidth[f->type];
+		}
+		else
+		{
+			bx = f->x;
+			bw = x - f->x + rwidth[f->type];
+		}
+		if (y < f->y)
+		{
+			by = y;
+			bh = f->y - y +rheight[f->type];
+		}
+		else
+		{
+			by = f->y;
+			bh = y - f->y +rheight[f->type];
+		}
+	}
+
+	if (f->frame)
+	{
+		/*
+		 * If there is a pixmap use it.
+		 * This branchis always taken since right now, if the pixmap
+		 * allocation failed, the program dies.
+		 */
+		if (pfishA[f->type][f->d])
+		{
+			/*
+			 * A pointless if, you now only come here if
+			 * DoClipping is set, I've just been too lazy to
+			 * clean up my code.
+			 */
+			if (DoClipping)
+			{
+				/*
+				 * Set up the masked gc for when we eventually
+				 * draw the fish.  Origin is different for
+				 * whether we are drawing into the buffer
+				 * or into the window
+				 */
+				gcv.clip_mask = mfishA[f->type][f->d];
+				if (DoubleBuf)
+				{
+					gcv.clip_x_origin = f->x - bx;
+					gcv.clip_y_origin = f->y - by;
+				}
+				else
+				{
+					gcv.clip_x_origin = f->x;
+					gcv.clip_y_origin = f->y;
+				}
+				XChangeGC(Dpy, gc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+
+				/*
+				 * If we have a background picture we want to
+				 * clear to that background, otherwise we just
+				 * do an XCleararea, and let the root restore
+				 * the background.
+				 */
+				if (picname[0] != '\0')
+				{
+					gcv.fill_style = FillTiled;
+					gcv.tile = PicMap;
+					gcv.clip_mask = mfishB[f->type][d];
+				    if (DoubleBuf)
+				    {
+					gcv.ts_x_origin = 0 - bx;
+					gcv.ts_y_origin = 0 - by;
+					gcv.clip_x_origin = x - bx;
+					gcv.clip_y_origin = y - by;
+				    }
+				    else
+				    {
+					gcv.ts_x_origin = 0;
+					gcv.ts_y_origin = 0;
+					gcv.clip_x_origin = x;
+					gcv.clip_y_origin = y;
+				    }
+					XChangeGC(Dpy, pgc, (GCFillStyle |
+						GCTile | GCTileStipXOrigin |
+						GCTileStipYOrigin | GCClipMask |
+						GCClipXOrigin | GCClipYOrigin),
+						&gcv);
+
+				    /*
+				     * if bouble buffering we clear the buffer
+				     * to the backgound picture, and then
+				     * shape the clip buffer to the shape of
+				     * the fish being erased.
+				     */
+				    if (DoubleBuf)
+				    {
+					XFillRectangle(Dpy, PixBuf, pgc,
+						x - bx, y - by,
+						rwidth[f->type],
+						rheight[f->type]);
+					XFillRectangle(Dpy, ClipBuf, c0gc, 0, 0,
+						500, 500);
+					XCopyArea(Dpy, mfishB[f->type][d],
+						ClipBuf, cpgc, 0, 0,
+						rwidth[f->type],
+						rheight[f->type],
+						x - bx, y - by);
+				    }
+				    else
+				    {
+					XFillRectangle(Dpy, wid, pgc, x, y,
+						rwidth[f->type],
+						rheight[f->type]);
+				    }
+				}
+				else
+				{
+				    XClearArea(Dpy, wid, x, y,
+					rwidth[f->type], rheight[f->type], 0);
+				}
+			}
+		    /*
+		     * Now we just copy in the new fish with a clipmasked gc.
+		     * But if we doublebuffered, we copy the new fish into
+		     * the buffer, combine the new fishes clipmask in, and
+		     * then mask the whole lot from the buffer to the window.
+		     */
+		    if (DoubleBuf)
+		    {
+			XCopyArea(Dpy, pfishA[f->type][f->d], PixBuf, gc, 0, 0,
+				rwidth[f->type], rheight[f->type],
+				f->x - bx, f->y - by);
+			XCopyArea(Dpy, mfishA[f->type][f->d], ClipBuf, cpgc,
+				0, 0, rwidth[f->type], rheight[f->type],
+				f->x - bx, f->y - by);
+			gcv.clip_mask = ClipBuf;
+			gcv.clip_x_origin = bx;
+			gcv.clip_y_origin = by;
+			XChangeGC(Dpy, gc,
+			    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+			    &gcv);
+			XCopyArea(Dpy, PixBuf, wid, gc, 0, 0, bw, bh, bx, by);
+		    }
+		    else
+		    {
+			XCopyArea(Dpy, pfishA[f->type][f->d], wid, gc, 0, 0,
+				rwidth[f->type], rheight[f->type], f->x, f->y);
+		    }
+		}
+		else
+		{
+			if (DoClipping)
+			{
+				if (picname[0] != '\0')
+				{
+					gcv.fill_style = FillTiled;
+					gcv.tile = PicMap;
+					gcv.ts_x_origin = 0;
+					gcv.ts_y_origin = 0;
+					gcv.clip_mask = mfishB[f->type][d];
+					gcv.clip_x_origin = x;
+					gcv.clip_y_origin = y;
+					XChangeGC(Dpy, pgc, (GCFillStyle |
+						GCTile | GCTileStipXOrigin |
+						GCTileStipYOrigin | GCClipMask |
+						GCClipXOrigin | GCClipYOrigin),
+						&gcv);
+					XFillRectangle(Dpy, wid, pgc, x, y,
+						rwidth[f->type],
+						rheight[f->type]);
+				}
+				else
+				{
+				    XClearArea(Dpy, wid, x, y,
+					rwidth[f->type], rheight[f->type], 0);
+				}
+			}
+			XPutImage(Dpy, wid, gc, xfishA[f->type][f->d], 0, 0,
+				f->x, f->y, rwidth[f->type], rheight[f->type]);
+		}
+		f->frame = 0;
+	}
+	else
+	{
+		/*
+		 * Same as above, only for the second frame of animation.
+		 */
+		if (pfishB[f->type][f->d])
+		{
+			if (DoClipping)
+			{
+				gcv.clip_mask = mfishB[f->type][f->d];
+				if (DoubleBuf)
+				{
+					gcv.clip_x_origin = f->x - bx;
+					gcv.clip_y_origin = f->y - by;
+				}
+				else
+				{
+					gcv.clip_x_origin = f->x;
+					gcv.clip_y_origin = f->y;
+				}
+				XChangeGC(Dpy, gc,
+				    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+				    &gcv);
+				if (picname[0] != '\0')
+				{
+					gcv.fill_style = FillTiled;
+					gcv.tile = PicMap;
+					gcv.clip_mask = mfishA[f->type][d];
+				    if (DoubleBuf)
+				    {
+					gcv.ts_x_origin = 0 - bx;
+					gcv.ts_y_origin = 0 - by;
+					gcv.clip_x_origin = x - bx;
+					gcv.clip_y_origin = y - by;
+				    }
+				    else
+				    {
+					gcv.ts_x_origin = 0;
+					gcv.ts_y_origin = 0;
+					gcv.clip_x_origin = x;
+					gcv.clip_y_origin = y;
+				    }
+					XChangeGC(Dpy, pgc, (GCFillStyle |
+						GCTile | GCTileStipXOrigin |
+						GCTileStipYOrigin | GCClipMask |
+						GCClipXOrigin | GCClipYOrigin),
+						&gcv);
+				    if (DoubleBuf)
+				    {
+					XFillRectangle(Dpy, PixBuf, pgc,
+						x - bx, y - by,
+						rwidth[f->type],
+						rheight[f->type]);
+					XFillRectangle(Dpy, ClipBuf, c0gc, 0, 0,
+						500, 500);
+					XCopyArea(Dpy, mfishA[f->type][d],
+						ClipBuf, cpgc, 0, 0,
+						rwidth[f->type],
+						rheight[f->type],
+						x - bx, y - by);
+				    }
+				    else
+				    {
+					XFillRectangle(Dpy, wid, pgc, x, y,
+						rwidth[f->type],
+						rheight[f->type]);
+				    }
+				}
+				else
+				{
+				    XClearArea(Dpy, wid, x, y,
+					rwidth[f->type], rheight[f->type], 0);
+				}
+			}
+		    if (DoubleBuf)
+		    {
+			XCopyArea(Dpy, pfishB[f->type][f->d], PixBuf, gc, 0, 0,
+				rwidth[f->type], rheight[f->type],
+				f->x - bx, f->y - by);
+			XCopyArea(Dpy, mfishB[f->type][f->d], ClipBuf, cpgc,
+				0, 0, rwidth[f->type], rheight[f->type],
+				f->x - bx, f->y - by);
+			gcv.clip_mask = ClipBuf;
+			gcv.clip_x_origin = bx;
+			gcv.clip_y_origin = by;
+			XChangeGC(Dpy, gc,
+			    GCClipMask | GCClipXOrigin | GCClipYOrigin,
+			    &gcv);
+			XCopyArea(Dpy, PixBuf, wid, gc, 0, 0, bw, bh, bx, by);
+		    }
+		    else
+		    {
+			XCopyArea(Dpy, pfishB[f->type][f->d], wid, gc, 0, 0,
+				rwidth[f->type], rheight[f->type], f->x, f->y);
+		    }
+		}
+		else
+		{
+			if (DoClipping)
+			{
+				if (picname[0] != '\0')
+				{
+					gcv.fill_style = FillTiled;
+					gcv.tile = PicMap;
+					gcv.ts_x_origin = 0;
+					gcv.ts_y_origin = 0;
+					gcv.clip_mask = mfishA[f->type][d];
+					gcv.clip_x_origin = x;
+					gcv.clip_y_origin = y;
+					XChangeGC(Dpy, pgc, (GCFillStyle |
+						GCTile | GCTileStipXOrigin |
+						GCTileStipYOrigin | GCClipMask |
+						GCClipXOrigin | GCClipYOrigin),
+						&gcv);
+					XFillRectangle(Dpy, wid, pgc, x, y,
+						rwidth[f->type],
+						rheight[f->type]);
+				}
+				else
+				{
+				    XClearArea(Dpy, wid, x, y,
+					rwidth[f->type], rheight[f->type], 0);
+				}
+			}
+			XPutImage(Dpy, wid, gc, xfishB[f->type][f->d], 0, 0,
+				f->x, f->y, rwidth[f->type], rheight[f->type]);
+		}
+		f->frame = 1;
+	}
+}
+
+
+erasebubble(b, s)
+    bubble     *b;
+    int         s;
+{
+	XClearArea(Dpy, wid, b->x, b->y, s, s, 0);
 }
 
 
@@ -243,6 +853,10 @@ putbubble(b, s, c)
  * Find the closest color by allocating it, or picking an already allocated
  * color
  */
+Visual (*visual_info) = NULL;
+int r_mask, g_mask, b_mask;
+int r_shift=0, g_shift=0, b_shift=0;
+int r_bits=0, g_bits=0, b_bits=0;
 void
 FindColor(Dpy, colormap, colr)
 	Display *Dpy;
@@ -255,7 +869,66 @@ FindColor(Dpy, colormap, colr)
 	XColor def_colrs[256];
 	int NumCells;
 
-	match = XAllocColor(Dpy, colormap, colr);
+	if( visual_info == NULL &&  DefaultDepth(Dpy, DefaultScreen(Dpy)) >= 16 )
+	{
+	   visual_info = DefaultVisual(Dpy, DefaultScreen(Dpy));
+	   r_mask = visual_info->red_mask;
+	   while( !(r_mask & 1) )
+	   {
+	      r_mask >>= 1;
+	      r_shift++;
+	   }
+	   while( r_mask & 1 )
+	   {
+	      r_mask >>= 1;
+	      r_bits++;
+	   }
+
+	   g_mask = visual_info->green_mask;
+	   while( !(g_mask & 1) )
+	   {
+	      g_mask >>= 1;
+	      g_shift++;
+	   }
+	   while( g_mask & 1 )
+	   {
+	      g_mask >>= 1;
+	      g_bits++;
+	   }
+
+	   b_mask = visual_info->blue_mask;
+	   while( !(b_mask &1) )
+	   {
+	      b_mask >>= 1;
+	      b_shift++;
+	   }
+	   while( b_mask & 1 )
+	   {
+	      b_mask >>= 1;
+	      b_bits++;
+	   }
+	}
+
+	if( DefaultDepth(Dpy, DefaultScreen(Dpy)) > 8 )
+	{
+	   colr->red >>= 16 - r_bits;
+	   colr->green >>= 16 - g_bits;
+	   colr->blue >>= 16 - b_bits;
+
+	   colr->pixel = ((colr->red << r_shift) & visual_info->red_mask) |
+	      ((colr->green << g_shift) & visual_info->green_mask) |
+	      ((colr->blue << b_shift) & visual_info->blue_mask);
+	   return;
+	}
+
+	if (AllocCnt < climit)
+	{
+		match = XAllocColor(Dpy, colormap, colr);
+	}
+	else
+	{
+		match = 0;
+	}
 	if (match == 0)
 	{
 		NumCells = DisplayCells(Dpy, DefaultScreen(Dpy));
@@ -285,7 +958,75 @@ FindColor(Dpy, colormap, colr)
 		colr->green = def_colrs[cindx].green;
 		colr->blue = def_colrs[cindx].blue;
 	}
+	else
+	{
+		if (Allocated[colr->pixel] == 0)
+		{
+			Allocated[colr->pixel] = 1;
+			AllocCnt++;
+		}
+	}
 }
+
+
+int
+ColorUsage(data, width, height, colrs)
+	unsigned char *data;
+	int width, height;
+	struct colr_data *colrs;
+{
+	int mapping[256];
+	int i, size;
+	int cnt, indx;
+	unsigned char *ptr;
+	struct colr_data newcol[256];
+
+	for (i=0; i<256; i++)
+	{
+		mapping[i] = -1;
+	}
+
+	size = width * height;
+	cnt = 0;
+	ptr = data;
+	for (i=0; i<size; i++)
+	{
+		indx = (int)*ptr;
+		if (mapping[indx] == -1)
+		{
+			mapping[indx] = cnt;
+			newcol[cnt].red = colrs[indx].red;
+			newcol[cnt].green = colrs[indx].green;
+			newcol[cnt].blue = colrs[indx].blue;
+			cnt++;
+		}
+		ptr++;
+	}
+
+	ptr = data;
+	for (i=0; i<size; i++)
+	{
+		indx = (int)*ptr;
+		*ptr = (unsigned char)mapping[indx];
+		ptr++;
+	}
+
+	for (i=0; i<cnt; i++)
+	{
+		colrs[i].red = newcol[i].red;
+		colrs[i].green = newcol[i].green;
+		colrs[i].blue = newcol[i].blue;
+	}
+	for (i=cnt; i<256; i++)
+	{
+		colrs[i].red = 0;
+		colrs[i].green = 0;
+		colrs[i].blue = 0;
+	}
+
+	return(cnt);
+}
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Initialize colormap for background color and required fish colors.
@@ -294,9 +1035,12 @@ The fish colors are coded in xfishy.h as a trio of tables.
 void 
 init_colormap()
 {
+	FILE *fp;
 	int i, j, cnt;
+	int NumCells;
 	XColor hdef, edef;
-	extern char *malloc();
+	struct colr_data *cdp;
+	struct colr_data colrs[256];
 
 	colormap = XDefaultColormap(Dpy, screen);
 
@@ -305,7 +1049,37 @@ init_colormap()
 		return;
 	}
 
+	NumCells = DisplayCells(Dpy, DefaultScreen(Dpy));
+	Allocated = (int *)malloc(NumCells * sizeof(int));
+	for (i=0; i<NumCells; i++)
+	{
+		Allocated[i] = 0;
+	}
+	AllocCnt = 0;
+	if ((climit <= 0)||(climit > NumCells))
+	{
+		climit = NumCells;
+	}
+
+	Pcnt = 0;
+	if (picname[0] != '\0')
+	{
+		fp = fopen(picname, "r");
+		if (fp == NULL)
+		{
+			fprintf(stderr, "Cannot open picture %s for reading\n",
+				picname);
+		}
+		else
+		{
+			Pdata = ReadBitmap(fp, &Pwidth, &Pheight, colrs);
+			fclose(fp);
+			Pcnt = ColorUsage(Pdata, Pwidth, Pheight, colrs);
+		}
+	}
+
 	cnt = 0;
+	cnt += Pcnt;
 	for (i=0; i<NUM_FISH; i++)
 	{
 		cnt += rcolors[i];
@@ -317,7 +1091,64 @@ init_colormap()
 	FindColor(Dpy, colormap, &hdef);
 	cmap[0] = hdef.pixel;
 
+	if (mlimit > 0)
+	{
+		MedianInit();
+	}
+
+	if (mlimit > 0)
+	{
+		if (picname[0] != '\0')
+		{
+			MedianCount(Pdata, Pwidth, Pheight, colrs);
+		}
+		for (j=0; j<NUM_FISH; j++)
+		{
+			int *rp, *gp, *bp;
+
+			cdp = (struct colr_data *)malloc(rcolors[j] *
+				sizeof(struct colr_data));
+			rp = rreds[j];
+			gp = rgreens[j];
+			bp = rblues[j];
+			for (i = 0; i < rcolors[j]; i++)
+			{
+				cdp[i].red = *rp++;
+				cdp[i].green = *gp++;
+				cdp[i].blue = *bp++;
+			}
+			MedianCount((unsigned char *)xfishRasterA[j],
+				(int)rwidth[j], (int)rheight[j], cdp);
+			free((char *)cdp);
+		}
+		MedianSplit(mlimit);
+	}
+
 	cnt = 1;
+	if (picname[0] != '\0')
+	{
+		for (i = 0; i < Pcnt; i++)
+		{
+			int rv, gv, bv;
+
+			rv = colrs[i].red;
+			gv = colrs[i].green;
+			bv = colrs[i].blue;
+
+			if (mlimit > 0)
+			{
+				ConvertColor(&rv, &gv, &bv);
+			}
+
+			hdef.red = rv;
+			hdef.green = gv;
+			hdef.blue = bv;
+			hdef.flags = DoRed|DoGreen|DoBlue;
+			FindColor(Dpy, colormap, &hdef);
+			cmap[cnt] = hdef.pixel;
+			cnt++;
+		}
+	}
 	for (j=0; j<NUM_FISH; j++)
 	{
 		int *rp, *gp, *bp;
@@ -327,9 +1158,20 @@ init_colormap()
 		bp = rblues[j];
 		for (i = 0; i < rcolors[j]; i++)
 		{
-			hdef.red = *rp++;
-			hdef.green = *gp++;
-			hdef.blue = *bp++;
+			int rv, gv, bv;
+
+			rv = *rp++;
+			gv = *gp++;
+			bv = *bp++;
+
+			if (mlimit > 0)
+			{
+				ConvertColor(&rv, &gv, &bv);
+			}
+
+			hdef.red = rv;
+			hdef.green = gv;
+			hdef.blue = bv;
 			hdef.flags = DoRed|DoGreen|DoBlue;
 			FindColor(Dpy, colormap, &hdef);
 			cmap[cnt] = hdef.pixel;
@@ -367,6 +1209,7 @@ MakeImage(data, width, height)
 		fprintf(stderr, "Don't know how to format image for display of depth %d\n", depth);
 		exit(1);
 	}
+
 	if (BitmapBitOrder(Dpy) == LSBFirst)
 	{
 		shiftstart = 0;
@@ -387,7 +1230,7 @@ MakeImage(data, width, height)
 	shiftnum = shiftstart;
 	for (h=0; h<height; h++)
 	{
-		for (w=0; w<width; w++)
+	        for (w=0; w<width; w++)
 		{
 			temp = *datap++ << shiftnum;
 			*bitp = *bitp | temp;
@@ -410,7 +1253,8 @@ MakeImage(data, width, height)
 			}
 		}
 	}
-	bytesperline = (width + linepad) * depth / 8;
+
+	bytesperline = (width  * depth / 8 + linepad);
 	newimage = XCreateImage(Dpy, DefaultVisual(Dpy, screen), depth,
 		ZPixmap, 0, (char *)bit_data,
 		(width + linepad), height, 8, bytesperline);
@@ -419,6 +1263,8 @@ MakeImage(data, width, height)
 }
 
 
+
+static unsigned char bits[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Calibrate the pixmaps and bimaps.  The right-fish data is coded in xfishy.h,
@@ -429,16 +1275,139 @@ void
 init_pixmap()
 {
 	register caddrt p, q, x1A, x1B, x2A, x2B;
+	unsigned char *data;
 	register int i, j, k;
-	int cnt;
-	extern char *malloc();
+	int cnt, wcnt;
 
 	cnt = 1;
+	cnt += Pcnt;
 	for (k=0; k<NUM_FISH; k++)
 	{
+
+	/*
+	 * The clipmasks must be created before we remap colors.
+	 * otherwise an opaque color might get remapped to a 
+	 * transparent color.
+	 */
+	if ((DoClipping)||(picname[0] != '\0'))
+	{
+		data = (unsigned char *) malloc((rwidth[k]+7) / 8 * rheight[k]);
+
+		p = (caddrt) xfishRasterA[k];
+		q = data;
+		wcnt = 0;
+		for (i = 0; i < ((rwidth[k]+7) / 8 * rheight[k]); i++)
+		{
+			unsigned char bt = 0x00;
+			for (j = 0; j < 8; j++)
+			{
+				if (*p != rback[k])
+				{
+					bt = bt | bits[j];
+				}
+				wcnt++;
+				p++;
+				if (wcnt == rwidth[k])
+				{
+					wcnt = 0;
+					break;
+				}
+			}
+			*q++ = bt;
+		}
+		mfishA[k][2] = XCreateBitmapFromData(Dpy, wid,
+			(char *)data, rwidth[k], rheight[k]);
+
+		p = (caddrt) xfishRasterA[k];
+		p = p + rwidth[k] - 1;
+		q = data;
+		wcnt = 0;
+		for (i = 0; i < ((rwidth[k]+7) / 8 * rheight[k]); i++)
+		{
+			unsigned char bt = 0x00;
+			for (j = 0; j < 8; j++)
+			{
+				if (*p != rback[k])
+				{
+					bt = bt | bits[j];
+				}
+				wcnt++;
+				p--;
+				if (wcnt == rwidth[k])
+				{
+					wcnt = 0;
+					p = p + (2 * rwidth[k]);
+					break;
+				}
+			}
+			*q++ = bt;
+		}
+		mfishA[k][1] = XCreateBitmapFromData(Dpy, wid,
+			(char *)data, rwidth[k], rheight[k]);
+
+		p = (caddrt) xfishRasterB[k];
+		q = data;
+		wcnt = 0;
+		for (i = 0; i < ((rwidth[k]+7) / 8 * rheight[k]); i++)
+		{
+			unsigned char bt = 0x00;
+			for (j = 0; j < 8; j++)
+			{
+				if (*p != rback[k])
+				{
+					bt = bt | bits[j];
+				}
+				wcnt++;
+				p++;
+				if (wcnt == rwidth[k])
+				{
+					wcnt = 0;
+					break;
+				}
+			}
+			*q++ = bt;
+		}
+		mfishB[k][2] = XCreateBitmapFromData(Dpy, wid,
+			(char *)data, rwidth[k], rheight[k]);
+
+		p = (caddrt) xfishRasterB[k];
+		p = p + rwidth[k] - 1;
+		q = data;
+		wcnt = 0;
+		for (i = 0; i < ((rwidth[k]+7) / 8 * rheight[k]); i++)
+		{
+			unsigned char bt = 0x00;
+			for (j = 0; j < 8; j++)
+			{
+				if (*p != rback[k])
+				{
+					bt = bt | bits[j];
+				}
+				wcnt++;
+				p--;
+				if (wcnt == rwidth[k])
+				{
+					wcnt = 0;
+					p = p + (2 * rwidth[k]);
+					break;
+				}
+			}
+			*q++ = bt;
+		}
+		mfishB[k][1] = XCreateBitmapFromData(Dpy, wid,
+			(char *)data, rwidth[k], rheight[k]);
+
+		free((char *)data);
+	}
+
+	if( DisplayPlanes(Dpy, screen) < 8 )
+	{
+
 		j = rwidth[k] * rheight[k];
 		x1A = (caddrt) malloc(rwidth[k] * rheight[k]);
 		p = (caddrt) xfishRasterA[k];
+
+
 		q = x1A;
 		for (i = 0; i < j; i++)
 		{
@@ -480,13 +1449,69 @@ init_pixmap()
 		}
 
 		xfishA[k][2] = MakeImage(x1A, rwidth[k], rheight[k]);
-		free((char *)x1A);
 		xfishA[k][1] = MakeImage(x2A, rwidth[k], rheight[k]);
-		free((char *)x2A);
 		xfishB[k][2] = MakeImage(x1B, rwidth[k], rheight[k]);
-		free((char *)x1B);
 		xfishB[k][1] = MakeImage(x2B, rwidth[k], rheight[k]);
+
+		free((char *)x1A);
+		free((char *)x2A);
+		free((char *)x1B);
 		free((char *)x2B);
+	}
+	else
+	{
+		i = DisplayPlanes(Dpy, screen);
+
+		xfishA[k][2] = XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+
+		p = (caddrt) xfishRasterA[k];
+
+		for (j = 0; j < rheight[k]; j++)
+		{
+		   for( i = 0; i < rwidth[k]; i++ )
+		   {
+		      XPutPixel(xfishA[k][2], i, j, cmap[cnt + (int)(*p)]);
+		      p++;
+		   }
+		}
+
+		xfishB[k][2] = XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+
+		p = (caddrt) xfishRasterB[k];
+
+		for (j = 0; j < rheight[k]; j++)
+		{
+		   for( i = 0; i < rwidth[k]; i++ )
+		   {
+		      XPutPixel(xfishB[k][2], i, j, cmap[cnt + (int)(*p)]);
+		      p++;
+		   }
+		}
+
+		xfishA[k][1] = XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+
+		for (j = 0; j < rheight[k]; j++)
+		{
+		   for( i = 0; i < rwidth[k]; i++ )
+		   {
+		      XPutPixel(xfishA[k][1], i, j,
+				XGetPixel(xfishA[k][2], rwidth[k] - i -1, j));
+		   }
+		}
+
+		xfishB[k][1] = XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+
+		for (j = 0; j < rheight[k]; j++)
+		{
+		   for( i = 0; i < rwidth[k]; i++ )
+		   {
+		      XPutPixel(xfishB[k][1], i, j,
+				XGetPixel(xfishB[k][2], rwidth[k] - i - 1, j));
+		   }
+		}
+
+	}
+
 
 		i = DisplayPlanes(Dpy, screen);
 
@@ -534,7 +1559,11 @@ init_pixmap()
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Toggle secure mode on receipt of signal
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#ifdef sgi
+int
+#else
 void
+#endif
 toggle_secure()
 {
     pmode = !pmode;
@@ -543,6 +1572,9 @@ toggle_secure()
     else
 	XRaiseWindow(Dpy, wid);
     XFlush(Dpy);
+#ifdef sgi
+    return(1);
+#endif
 }
 
 
@@ -552,7 +1584,11 @@ Initialize signal so that SIGUSR1 causes secure mode to toggle.
 void 
 init_signals()
 {
-#ifdef MOTOROLA
+	int ret;
+#ifdef linux
+	signal(SIGUSR1, toggle_secure);
+#else			
+#if defined(MOTOROLA) || defined(SCO)
     sigset(SIGUSR1, toggle_secure);
 #else
     struct sigvec vec;
@@ -561,12 +1597,21 @@ init_signals()
     vec.sv_mask = 0;
     vec.sv_onstack = 0;
 
-#ifndef HPUX
-    sigvec(SIGUSR1, &vec, &vec);
+#ifndef hpux
+    ret = sigvec(SIGUSR1, &vec, &vec);
+	if (ret != 0)
+	{
+		fprintf(stderr, "sigvec call failed\n");
+	}
+	else
+	{
+		fprintf(stderr, "sigvec call OK\n");
+	}
 #else
     sigvector(SIGUSR1, &vec, &vec);
 #endif
 #endif /* MOTOROLA */
+#endif /* LINUX */
 }
 
 
@@ -579,29 +1624,79 @@ initialize()
     XWindowAttributes winfo;
     XSetWindowAttributes attr;
     XGCValues   vals;
-    extern char *malloc();
     XSizeHints  xsh;
-    int i;
+    XImage *pimage;
+    int i, size, cnt;
+    unsigned char *ndata;
+    unsigned char *ptr1, *ptr2;
 
     XGetWindowAttributes(Dpy, DefaultRootWindow(Dpy), &winfo);
     width = winfo.width;
     height = winfo.height;
 
     init_colormap();
+
+    if (picname[0] != '\0')
+    {
+	size = Pwidth * Pheight;
+	ndata = (unsigned char *)malloc(size);
+	ptr1 = Pdata;
+	ptr2 = ndata;
+	cnt = 1;
+	for (i = 0; i < size; i++)
+	{
+		*ptr2 = cmap[cnt + (int)(*ptr1)];
+		ptr1++;
+		ptr2++;
+	}
+	pimage = MakeImage(ndata, Pwidth, Pheight);
+	free((char *)ndata);
+	i = DisplayPlanes(Dpy, screen);
+	PicMap = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), Pwidth, Pheight, i);
+	if (PicMap == NULL)
+	{
+		fprintf(stderr, "Cannot create background pixmap\n");
+		picname[0] = '\0';
+	}
+    }
+
+    if ((DoubleBuf)||(picname[0] != '\0'))
+    {
+	i = DisplayPlanes(Dpy, screen);
+	PixBuf = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), 500, 500, i);
+	ClipBuf = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), 500, 500, 1);
+	c0gc = XCreateGC(Dpy, ClipBuf, 0, NULL);
+	XSetForeground(Dpy, c0gc, (unsigned long)0);
+	XSetFunction(Dpy, c0gc, GXcopy);
+	cpgc = XCreateGC(Dpy, ClipBuf, 0, NULL);
+	XSetFunction(Dpy, cpgc, GXor);
+    }
+
+
     attr.override_redirect = True;
     attr.background_pixel = cmap[0];
 
-    wid = XCreateWindow(Dpy, DefaultRootWindow(Dpy),
+    if ((!DoClipping)||(picname[0] != '\0'))
+    {
+       wid = XCreateWindow(Dpy, DefaultRootWindow(Dpy),
 	1, 1, width - 2, height - 2, 0,
 	CopyFromParent, CopyFromParent, CopyFromParent, 
 	CWBackPixel | CWOverrideRedirect, &attr);
 
     if (!wid)
 	msgdie("XCreateWindow failed");
+    }
+    else
+    {
+       wid = DefaultRootWindow(Dpy);
+       XClearArea(Dpy, wid, 0, 0, 0, 0, False);
+    }
 
     vals.foreground = vals.background = cmap[0];
     vals.graphics_exposures = False;
     gc = XCreateGC(Dpy, wid, GCForeground | GCBackground | GCGraphicsExposures,
+	&vals);
+    pgc = XCreateGC(Dpy, wid, GCForeground | GCBackground | GCGraphicsExposures,
 	&vals);
     bgc = XCreateGC(Dpy, wid, GCForeground | GCBackground | GCGraphicsExposures,
 	&vals);
@@ -614,20 +1709,36 @@ initialize()
 	pfishB[i][0] = 0;
 	pfishB[i][1] = 0;
 	pfishB[i][2] = 0;
+
+	mfishA[i][0] = 0;
+	mfishA[i][1] = 0;
+	mfishA[i][2] = 0;
+	mfishB[i][0] = 0;
+	mfishB[i][1] = 0;
+	mfishB[i][2] = 0;
     }
 
     init_pixmap();
     init_signals();
 
-    XStoreName(Dpy, wid, pname);
+    if ((!DoClipping)||(picname[0] != '\0'))
+    {
+       XStoreName(Dpy, wid, pname);
 
-    xsh.flags = USSize | USPosition | PPosition | PSize;
-    xsh.x = xsh.y = 0;
-    xsh.width = width;
-    xsh.height = height;
-    XSetNormalHints(Dpy, wid, &xsh);
+       xsh.flags = USSize | USPosition | PPosition | PSize;
+       xsh.x = xsh.y = 0;
+       xsh.width = width;
+       xsh.height = height;
+       XSetNormalHints(Dpy, wid, &xsh);
 
-    XMapWindow(Dpy, wid);
+       if (picname[0] != '\0')
+       {
+	  XPutImage(Dpy, PicMap, gc, pimage, 0, 0, 0, 0, Pwidth, Pheight);
+	  XSetWindowBackgroundPixmap(Dpy, wid, PicMap);
+       }
+
+       XMapWindow(Dpy, wid);
+    }
 
     binfo = (bubble *) malloc(blimit * sizeof(bubble));
     finfo = (fish *) malloc(flimit * sizeof(fish));
@@ -674,7 +1785,14 @@ step_bubbles()
 		/* clear */
 		if ((b->y > 0)&&(b->erased == 0))
 		{
-			putbubble(b, s, cmap[0]);
+			if ((DoClipping)||(picname[0] != '\0'))
+			{
+				erasebubble(b, s);
+			}
+			else
+			{
+				putbubble(b, s, cmap[0]);
+			}
 		}
 		if ((b->y -= b->i) > 0)
 		{
@@ -753,6 +1871,11 @@ collide_fish(f0, xt)
 	int i, j;
 	register fish *f = f0;
 
+	if (Overlap)
+	{
+		return(0);
+	}
+
 	for (i = 0; i < flimit; i++)
 	{
 		if (&finfo[i] != f)
@@ -829,7 +1952,7 @@ fish height in either direction, if no collisions are caused.
 void 
 move_fish()
 {
-	register int i, j, x, y, ofx, ofy, done;
+	register int i, j, x, y, ofx, ofy, ofd, done;
 	register fish *f;
 
 	for (i = 0; i < flimit; i++)
@@ -839,6 +1962,7 @@ move_fish()
 		{
 			ofx = f->x;
 			ofy = f->y;
+			ofd = f->d;
 
 			if (f->d == 1)
 			{
@@ -892,6 +2016,12 @@ move_fish()
 							}
 						}
 					}
+				if (DoClipping)
+				{
+					movefish(f, ofx, ofy, ofd);
+				}
+				else
+				{
 					putfish(f);
 					XClearArea(Dpy, wid, x, ofy,
 						f->i, rheight[f->type], 0);
@@ -900,6 +2030,8 @@ move_fish()
 						XClearArea(Dpy, wid, ofx, j,
 							rwidth[f->type], y, 0);
 					}
+				}
+
 				}
 				else
 				{
@@ -920,11 +2052,21 @@ move_fish()
 					f->x = f->x + 2 * f->i;
 					x = f->x - f->i;
 				}
-				putfish(f);
-				XClearArea(Dpy, wid, x, f->y,
-					f->i, rheight[f->type], 0);
+				if (DoClipping)
+				{
+					movefish(f, ofx, ofy, ofd);
+				}
+				else
+				{
+					putfish(f);
+					XClearArea(Dpy, wid, x, f->y,
+						f->i, rheight[f->type], 0);
+				}
 			}
-			collide_bubbles(f, ofx, ofy);
+			if ((!DoClipping)||(picname[0] == '\0'))
+			{
+				collide_bubbles(f, ofx, ofy);
+			}
 		}
 		else
 		{

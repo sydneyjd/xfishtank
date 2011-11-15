@@ -12,7 +12,7 @@ main()
 	fp = fopen("FishList", "r");
 	if (fp == NULL)
 	{
-		printf(stderr, "ERROR: cannot open FishList for read!\n");
+		fprintf(stderr, "ERROR: cannot open FishList for read!\n");
 		exit(1);
 	}
 	fscanf(fp, "%d\n", &numfish);

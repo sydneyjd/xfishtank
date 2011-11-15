@@ -1,0 +1,7 @@
+
+Read a PC .fsh file, and write a xfishtank fish.
+
+If input is from stdin writes fish.h
+
+if input is file.fsh on command line writes file.h
+

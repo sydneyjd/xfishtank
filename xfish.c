@@ -34,13 +34,15 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #ifdef sgi
 #define _BSD_SIGNALS
 #endif
 #include <signal.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <malloc.h>
 
 #include "vroot.h"
 #include "xfishy.h"
@@ -56,6 +58,13 @@
 #define  RAND_I_1_2   1073741823
 #define  RAND_I_3_4   1610612735
 #define  RAND_F_MAX   2147483647.0
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#define  RAND_I_1_16   (RAND_MAX>>4)
+#define  RAND_F_1_8    ((float)(RAND_MAX>>3))
+#define  RAND_I_1_4    (RAND_MAX>>2)
+#define  RAND_I_1_2    (RAND_MAX>>1)
+#define  RAND_I_3_4    ((RAND_MAX>>2)*3)
+#define  RAND_F_MAX    ((float)RAND_MAX)
 #else
 #define  RAND_I_1_16   2048
 #define  RAND_F_1_8    4096.0
@@ -1044,11 +1053,6 @@ init_colormap()
 
 	colormap = XDefaultColormap(Dpy, screen);
 
-	if (colormap == NULL)
-	{
-		return;
-	}
-
 	NumCells = DisplayCells(Dpy, DefaultScreen(Dpy));
 	Allocated = (int *)malloc(NumCells * sizeof(int));
 	for (i=0; i<NumCells; i++)
@@ -1599,6 +1603,7 @@ init_signals()
 
 #ifndef hpux
     ret = sigvec(SIGUSR1, &vec, &vec);
+#if 0
 	if (ret != 0)
 	{
 		fprintf(stderr, "sigvec call failed\n");
@@ -1607,6 +1612,7 @@ init_signals()
 	{
 		fprintf(stderr, "sigvec call OK\n");
 	}
+#endif
 #else
     sigvector(SIGUSR1, &vec, &vec);
 #endif
@@ -1653,11 +1659,6 @@ initialize()
 	free((char *)ndata);
 	i = DisplayPlanes(Dpy, screen);
 	PicMap = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), Pwidth, Pheight, i);
-	if (PicMap == NULL)
-	{
-		fprintf(stderr, "Cannot create background pixmap\n");
-		picname[0] = '\0';
-	}
     }
 
     if ((DoubleBuf)||(picname[0] != '\0'))
@@ -2083,12 +2084,11 @@ void
 high_res_sleep(seconds)
     double      seconds;
 {
-    int         fds = 0;
     struct timeval timeout;
 
     timeout.tv_sec = seconds;
     timeout.tv_usec = (seconds - timeout.tv_sec) * 1000000.0;
-    select(0, &fds, &fds, &fds, &timeout);
+    select(0, NULL, NULL, NULL, &timeout);
 }
 
 

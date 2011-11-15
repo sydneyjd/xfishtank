@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "medcut.h"
 
 #define RED     0

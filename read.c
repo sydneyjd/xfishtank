@@ -1,5 +1,7 @@
 #include <X11/Xlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "compact.h"
 #include "medcut.h"
 

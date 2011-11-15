@@ -56,11 +56,8 @@
 
 #include <X11/Intrinsic.h>
 #include <stdio.h>
-#ifdef	SYSV
+#include <stdlib.h>
 #include <string.h>
-#else	/* SYSV */
-#include <strings.h>
-#endif	/* SYSV */
 
 /*EJB*/
 struct rgb_color {

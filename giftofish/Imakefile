@@ -1,6 +1,0 @@
-LOCAL_LIBRARIES = 
-
-SRCS = giftofish.c gifread.c
-OBJS = giftofish.o gifread.o
-
-ComplexProgramTarget(giftofish)

@@ -1,6 +1,0 @@
-LOCAL_LIBRARIES = 
-
-SRCS = fishtogif.c writegif.c
-OBJS = fishtogif.o writegif.o
-
-ComplexProgramTarget(fishtogif)

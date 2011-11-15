@@ -677,12 +677,14 @@ struct colr_data *colrs;
 		{
 			return(bit_data);
 		}
+#ifdef GIF
 		rewind(fp);
 		bit_data = ReadGifBitmap(fp, w, h, colrs);
 		if (bit_data != NULL)
 		{
 			return(bit_data);
 		}
+#endif
 		rewind(fp);
 		bit_data = ReadXbmBitmap(fp, w, h, colrs);
 		if (bit_data != NULL)

@@ -1,0 +1,88 @@
+.\"
+.\" xfishtank.man
+.\"
+.\" ##
+.\"
+.\" Copyright (c) 1988-92                 (xfishtank)
+.\"	                    Jonathan Greenblatt
+.\"	                    Dave Lemke
+.\"	                    Eric Bina
+.\"
+.\" Copyright (c) 1996	Vincent Renardias (This manpage)
+.\"
+.\"                   All Rights Reserved
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted,
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear in
+.\" supporting documentation, and that the name of the author not be
+.\" used in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\"
+.\" This program is distributed in the hope that it will be "playable",
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.\"
+.TH XFISHTANK 1 "29 November 1996" "V2.2"
+.SH NAME
+xfishtank \- Fish swimming across your Root Window
+.SH SYNOPSIS
+.B xfishtank
+[-c <color>] [-b <limit>] [-f <limit>] [-i <mult>] [-r <rate>] [-m <num>]
+[-C <num>] [-d] [-p <file>] [host:display]
+.SH DESCRIPTION
+.LP
+xfishtank is a animation program to simulate an Aquarium on your X desktop.
+.LP
+Each fish can have up to 255 colors, but on startup the program
+takes all the colors from all the fish, and squeezes them down to all fit
+into the default colormap as best it can.  Any fish can be any size in
+width and height.  To make them look more like they are swimming, fish are
+animated (Very simple 2 frame animation). Fish CANNOT swim over each other, they
+will turn around if they are about to collide.
+.SH OPTIONS
+.TP 8
+.B \-c \fIcolor\fP
+Background color of the fishtank
+.TP 8
+.B \-b \fIlimit\fP
+Number of bubbles (Default is set to 32)
+.TP 8
+.B \-f \fIlimit\fP
+Number of fishes (Default is set to 10)
+.TP 8
+.B \-i \fIinter\fP
+Move interval (Default is set to 0.2)
+.TP 8
+.B \-r \fIrate\fP
+Move frequency (Default is set to 0.2)
+.TP 8
+.B \-m \fInum\fP
+Median cut to this many colors
+.TP 8
+.B \-C \fInum\fP
+Use only this many color cells
+.TP 8
+.B \-d
+Clip fish, swim on root window
+.TP 8
+.B \-p \fIfile\fP
+Fish swim on picture in file
+.TP 8
+.B \-\fIhost\fP:\fIdpy\fP
+This option specifies the X server to contact.
+.SH SEE ALSO
+.LP
+X(1), xsetroot(1x)
+.SH AUTHORS
+Eric Bina, <\fIebina@ncsa.uiuc.edu\fP> (Original author)
+.LP
+Dave Black, <\fIdlbb0@amdahl.com\fP> (Linux port)
+.LP
+TJ Phan, <\fIphan@aur.alcatel.com\fP> (TrueColor Support)
+.LP
+Vincent Renardias <\fIvincent@waw.com\fP> (man page, Debian packaging)
+.LP
+Send bugs (or their reports, or fixes) here:
+.RI < http://www.debian.org/Bugs/ >.

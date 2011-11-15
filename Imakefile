@@ -3,9 +3,10 @@ LOCAL_LIBRARIES = $(XLIB)
         DEPLIBS = $(DEPXLIB)
   SYS_LIBRARIES = -lm
     CDEBUGFLAGS = -g
+    MANSRCSUFFIX=1x
 
-           SRCS = xfish.c medcut.c read.c gifread.c
-           OBJS = xfish.o medcut.o read.o gifread.o
+           SRCS = xfish.c medcut.c read.c
+           OBJS = xfish.o medcut.o read.o
 
 ComplexProgramTarget(xfishtank)
 

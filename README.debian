@@ -1,0 +1,217 @@
+Debian copyright:
+
+This is a Debian prepackaged version of xfishtank.
+
+This package was put together by Joey Hess <joeyh@debian.org>, using
+sources from:
+	ftp://ftp.x.org/R5contrib/xfishtank.tar.Z
+
+I tracked down John Bradley <bradley@trilon.com>, who wrote the xfish
+program back around 1987, that xfishtank is derived from. He stated the
+following copyright:
+
+> It doesn't have one - do whatever you'd like with it.  Enjoy!
+>
+> --jhb
+
+rasttofish/rasttofish.c has this copyright:
+
+** Copyright (C) 1989, 1991 by Jef Poskanzer.
+**
+** Permission to use, copy, modify, and distribute this software and its
+** documentation for any purpose and without fee is hereby granted, provided
+** that the above copyright notice appear in all copies and that both that
+** copyright notice and this permission notice appear in supporting
+** documentation.  This software is provided "as is" without express or
+** implied warranty.
+
+Debian changelog:
+
+xfishtank (2.2-25.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Correct build dependencies (Closes: #485546, #515415)
+  * Remove obsolete source and diff targets.
+  * Don't ignore errors by make clean.
+  * Add a dependency on misc:Depends
+  * Add a versioned dependency on debhelper 7
+
+ -- Raphael Geissert <geissert@debian.org>  Wed, 08 Jul 2009 03:01:55 -0500
+
+xfishtank (2.2-25) unstable; urgency=low
+
+  * Maintainer Upload, incorporates NMU
+  * Updated dh compat level to v7
+
+ -- Eric Schwartz (Skif) <emschwar@debian.org>  Wed, 10 Sep 2008 20:22:17 -0500
+
+xfishtank (2.2-24.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Build-depend on libxext-dev, fixes FTBFS (Closes: #486972)
+
+ -- Moritz Muehlenhoff <jmm@debian.org>  Fri, 27 Jun 2008 21:44:24 +0200
+
+xfishtank (2.2-24) unstable; urgency=low
+
+  * Move binaries out of /usr/X11R6/bin (Closes: #362906)
+
+ -- Eric Schwartz (Skif) <emschwar@debian.org>  Fri, 21 Jul 2006 01:44:19 -0600
+
+xfishtank (2.2-23.1) unstable; urgency=low
+
+  * Non-maintainer upload to help xlibs-dev transition
+  * debian/control: Replace xlibs-dev build-dep. (Closes: #346831)
+
+ -- Marc 'HE' Brockschmidt <he@debian.org>  Fri, 20 Jan 2006 14:47:32 +0100
+
+xfishtank (2.2-23) unstable; urgency=low
+
+  * Updated vroot.h to handle Xinerama (closes: #217490)
+
+ -- Eric Schwartz <emschwar@debian.org>  Tue, 18 Nov 2003 22:09:50 -0700
+
+xfishtank (2.2-22) unstable; urgency=low
+
+  * Applied patch from Steve Kemp (closes: #176686)
+
+ -- Eric Schwartz <emschwar@debian.org>  Mon,  7 Apr 2003 19:10:04 -0600
+
+xfishtank (2.2-21) unstable; urgency=low
+
+  * Checks for DefaultDepth > 8, instead of >= 16, as per patch by
+    Matthew Marjanovic (closes: #144091)
+  * Uses latest vroot.h from ftp.x.org/contrib/libraries (closes: #134253)
+
+ -- Eric Schwartz <emschwar@debian.org>  Tue, 28 May 2002 22:55:56 -0600
+	     
+xfishtank (2.2-20) unstable; urgency=low
+
+  * Added MANSRCSUFFIX, per patch provided by tomas@groupe-internet.com
+    (closes: #107801)
+  * Added patch from Randolph Chung to build on ia64 (closes: #110214)
+  * Patch also fixes build problems reported by Lamont (closes: #105115)
+
+ -- Eric Schwartz <emschwar@debian.org>  Tue, 28 Aug 2001 09:01:17 -0600
+
+xfishtank (2.2-19) unstable; urgency=low
+
+  * fixed build-deps to include xutils (closes: #102280)
+
+ -- Eric Schwartz <emschwar@debian.org>  Tue, 26 Jun 2001 02:26:50 -0600
+
+xfishtank (2.2-18) unstable; urgency=low
+
+  * rewrote option parsing code (closes: #63725)
+
+ -- Eric Schwartz <emschwar@rmi.net>  Sat, 23 Jun 2001 18:21:00 -0600
+
+xfishtank (2.2-17) unstable; urgency=low
+
+  * Updated Maintainer
+
+ -- Eric M. Schwartz <emschwar@debian.org>  Mon, 21 Aug 2000 21:52:00 -0700
+
+xfishtank (2.2-16) unstable; urgency=low
+
+  * Build deps.
+
+ -- Joey Hess <joeyh@debian.org>  Sat,  4 Dec 1999 18:20:14 -0800
+
+xfishtank (2.2-15) unstable; urgency=low
+
+  * FHS
+
+ -- Joey Hess <joeyh@debian.org>  Mon, 20 Sep 1999 21:14:45 -0700
+
+xfishtank (2.2-14) unstable; urgency=low
+
+  * Removed space after \ continuation character in menu file.
+
+ -- Joey Hess <joeyh@debian.org>  Wed,  5 Aug 1998 14:23:36 -0700
+
+xfishtank (2.2-13) unstable; urgency=low
+
+  * Fixed minor lintian errors.
+
+ -- Joey Hess <joeyh@debian.org>  Sat, 14 Mar 1998 20:32:57 -0800
+
+xfishtank (2.2-12) unstable; urgency=low
+
+  * Move man page into proper directory.
+
+ -- Joey Hess <joeyh@debian.org>  Mon, 16 Feb 1998 14:10:58 -0800
+
+xfishtank (2.2-11) unstable; urgency=low
+
+  * Updated to latest standards version (was already compilent, AFAIK)
+    #16781
+
+ -- Joey Hess <joeyh@debian.org>  Wed,  7 Jan 1998 12:03:54 -0500
+
+xfishtank (2.2-10) unstable; urgency=low
+
+  * Package got corrupted on master, reupload of .orig.tar.gz.
+
+ -- Joey Hess <joeyh@debian.org>  Wed,  3 Dec 1997 13:38:18 -0500
+
+xfishtank (2.2-9) unstable; urgency=low
+
+  * Fixed copyright file to actually give the copyright info (#14965), as
+    well as the upstream source location.
+  * Use debhelper.
+  * I noticed that the source package contained gif code. Rather than move
+    this package to non-free, I have created a new source package, with the
+    gif code removed.
+
+ -- Joey Hess <joeyh@debian.org>  Sun, 16 Nov 1997 20:05:26 -0500
+
+xfishtank (2.2-8) unstable; urgency=low
+
+  * Complied with libc6 xlib (#11954).
+  * New maintainer.
+  * Added a menu file.
+
+ -- Joey Hess <joeyh@debian.org>  Wed, 10 Sep 1997 01:15:13 -0400
+
+xfishtank (2.2-7) unstable; urgency=low
+
+  * Orphaned the package.
+
+ -- Vincent Renardias <vincent@waw.com>  Fri, 2 May 1997 01:16:46 +0200
+
+xfishtank (2.2-6) unstable; urgency=low
+
+  * Recompiled with libc6.
+
+ -- Vincent Renardias <vincent@waw.com>  Fri, 2 May 1997 01:16:46 +0200
+
+xfishtank (2.2-5) unstable; urgency=low
+
+  * Wrote manpage. (Corrects Bug #5592)
+
+ -- Vincent Renardias <vincent@waw.com>  Sat, 14 Dec 1996 03:42:09 +0100
+
+xfishtank (2.2-4) unstable; urgency=medium
+
+  * Maintainer changed
+  * Some typo. corrections
+  * Changed compile options, strip executable
+  * Added some doc. files
+  * Added link to undocumented.7
+
+ -- Vincent Renardias <vincent@waw.com>  Sat, 19 Oct 1996 04:37:37 +0200
+
+xfishtank (2.2-3) unstable; urgency=medium
+
+  * Full Color support enabled (Will hopefully cure problems with 16bpp)
+    as well
+
+ -- Christoph Lameter <clameter@waterf.org>  Thu, 08 Sep 1996 15:37:25 +0100
+
+xfishtank (2.2-2) unstable; urgency=low
+
+  * Switched to new way of doing packages
+  * Included copyright information etc
+
+ -- Christoph Lameter <clameter@waterf.org>  Thu, 01 Sep 1996 15:37:25 +0100

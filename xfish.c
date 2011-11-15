@@ -27,6 +27,7 @@
 
 */
 
+#include <sys/types.h>
 #ifndef hpux
 #include <sys/time.h>
 #else
@@ -181,42 +182,13 @@ parse(argc, argv)
 {
     int         c,
                 i;
-    char       *p;
     extern int  optind;
     extern char *optarg;
     extern double atof();
 
     pname = argv[0];
-    strcpy(sname, getenv("DISPLAY"));
+    strncpy(sname, getenv("DISPLAY"),sizeof(sname)-1);
     strcpy(cname, "MediumAquamarine");
-    picname[0] = '\0';
-
-    if ((p = XGetDefault(Dpy, pname, "BubbleLimit")) != NULL)
-	blimit = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "ColorLimit")) != NULL)
-	climit = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "MedianCutLimit")) != NULL)
-	mlimit = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "DoClipping")) != NULL)
-	DoClipping = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "DoubleBuffer")) != NULL)
-	DoubleBuf = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "Overlap")) != NULL)
-	Overlap = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "Color")) != NULL)
-	strcpy(cname, p);
-    if ((p = XGetDefault(Dpy, pname, "Picture")) != NULL)
-	strcpy(picname, p);
-    if ((p = XGetDefault(Dpy, pname, "FishLimit")) != NULL)
-	flimit = atoi(p);
-    if ((p = XGetDefault(Dpy, pname, "IncMult")) != NULL)
-	smooth = atof(p);
-    if ((p = XGetDefault(Dpy, pname, "Rate")) != NULL)
-	rate = atof(p);
-    if ((p = XGetDefault(Dpy, pname, "Secure")) != NULL)
-	for (i = 0; i < 6; i++)
-	    if (strcmp(p, yess[i]) == 0)
-		pmode = 0;
 
     while ((c = getopt(argc, argv, "dDob:C:c:p:m:f:i:r:s")) != EOF) {
 	switch (c) {
@@ -239,10 +211,10 @@ parse(argc, argv)
 	    mlimit = atoi(optarg);
 	    break;
 	case 'c':
-	    strcpy(cname, optarg);
+	    strncpy(cname, optarg,sizeof(cname)-1);
 	    break;
 	case 'p':
-	    strcpy(picname, optarg);
+	    strncpy(picname, optarg,sizeof(picname)-1);
 	    break;
 	case 'f':
 	    flimit = atoi(optarg);
@@ -272,17 +244,14 @@ parse(argc, argv)
 	}
     }
 
-    if (optind < argc)
-	strcpy(sname, argv[optind]);
+    if (optind < argc) {
+        char *display;
+	strncpy(sname, argv[optind], sizeof(sname)-1);
+	display = (char *)malloc(strlen(sname) + 9);
+	snprintf(display,sizeof(display)-1, "DISPLAY=%s", sname);
+	putenv(display);
+    }
 
-	/*
-	 * DoubleBuf is only useful if we are doing clipping on our
-	 * own background picture, otherwise turn it off.
-	 */
-	if ((DoubleBuf)&&((!DoClipping)||(picname[0] == '\0')))
-	{
-		DoubleBuf = 0;
-	}
 }
 
 
@@ -878,7 +847,7 @@ FindColor(Dpy, colormap, colr)
 	XColor def_colrs[256];
 	int NumCells;
 
-	if( visual_info == NULL &&  DefaultDepth(Dpy, DefaultScreen(Dpy)) >= 16 )
+	if( visual_info == NULL &&  DefaultDepth(Dpy, DefaultScreen(Dpy)) > 8 )
 	{
 	   visual_info = DefaultVisual(Dpy, DefaultScreen(Dpy));
 	   r_mask = visual_info->red_mask;
@@ -1633,12 +1602,50 @@ initialize()
     XSizeHints  xsh;
     XImage *pimage;
     int i, size, cnt;
+    char *p;
     unsigned char *ndata;
     unsigned char *ptr1, *ptr2;
 
     XGetWindowAttributes(Dpy, DefaultRootWindow(Dpy), &winfo);
     width = winfo.width;
     height = winfo.height;
+
+    picname[0] = '\0';
+    if ((p = XGetDefault(Dpy, pname, "BubbleLimit")) != NULL)
+	blimit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "ColorLimit")) != NULL)
+	climit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "MedianCutLimit")) != NULL)
+	mlimit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "DoClipping")) != NULL)
+	DoClipping = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "DoubleBuffer")) != NULL)
+	DoubleBuf = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "Overlap")) != NULL)
+	Overlap = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "Color")) != NULL)
+	strcpy(cname, p);
+    if ((p = XGetDefault(Dpy, pname, "Picture")) != NULL)
+	strcpy(picname, p);
+    if ((p = XGetDefault(Dpy, pname, "FishLimit")) != NULL)
+	flimit = atoi(p);
+    if ((p = XGetDefault(Dpy, pname, "IncMult")) != NULL)
+	smooth = atof(p);
+    if ((p = XGetDefault(Dpy, pname, "Rate")) != NULL)
+	rate = atof(p);
+    if ((p = XGetDefault(Dpy, pname, "Secure")) != NULL)
+	for (i = 0; i < 6; i++)
+	    if (strcmp(p, yess[i]) == 0)
+		pmode = 0;
+
+    /*
+     * DoubleBuf is only useful if we are doing clipping on our
+     * own background picture, otherwise turn it off.
+     */
+    if ((DoubleBuf)&&((!DoClipping)||(picname[0] == '\0')))
+    {
+      DoubleBuf = 0;
+    }
 
     init_colormap();
 
@@ -2094,7 +2101,7 @@ high_res_sleep(seconds)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-void 
+int
 main(argc, argv)
     int         argc;
     char      **argv;
@@ -2102,13 +2109,13 @@ main(argc, argv)
     int         i;
     XEvent      ev;
 
-    if ((Dpy = XOpenDisplay("")) == 0)
+    parse(argc, argv);
+    if ((Dpy = XOpenDisplay(sname)) == 0)
 	msgdie("XOpenDisplay failed");
     screen = DefaultScreen(Dpy);
 
     white = WhitePixel(Dpy, screen);
     black = BlackPixel(Dpy, screen);
-    parse(argc, argv);
     initialize();
 
     srand((unsigned) getpid());
@@ -2147,5 +2154,7 @@ main(argc, argv)
 	else
 	    XRaiseWindow(Dpy, wid);
     }
+
+    return 0;
 }
 

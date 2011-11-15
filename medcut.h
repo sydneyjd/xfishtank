@@ -1,6 +1,6 @@
 
 struct colr_data {
-	int red, green, blue;
+    int red, green, blue;
 };
 
 extern void MedianCount();

@@ -49,63 +49,64 @@ struct rasterfile {
 #define RMT_EQUAL_RGB	1
 #define RMT_RAW		2
     long ras_maplength;
-    };
+};
 
 struct pixrectops {
-    int	(*pro_rop)();
-    int	(*pro_stencil)();
-    int	(*pro_batchrop)();
-    int	(*pro_nop)();
-    int	(*pro_destroy)();
-    int	(*pro_get)();
-    int	(*pro_put)();
-    int	(*pro_vector)();
-    struct pixrect* (*pro_region)();
-    int	(*pro_putcolormap)();
-    int	(*pro_getcolormap)();
-    int	(*pro_putattributes)();
-    int	(*pro_getattributes)();
-    };
+    int (*pro_rop) ();
+    int (*pro_stencil) ();
+    int (*pro_batchrop) ();
+    int (*pro_nop) ();
+    int (*pro_destroy) ();
+    int (*pro_get) ();
+    int (*pro_put) ();
+    int (*pro_vector) ();
+    struct pixrect *(*pro_region) ();
+    int (*pro_putcolormap) ();
+    int (*pro_getcolormap) ();
+    int (*pro_putattributes) ();
+    int (*pro_getattributes) ();
+};
 
 struct pr_size {
     int x, y;
-    };
+};
 struct pr_pos {
     int x, y;
-    };
+};
 
 struct pixrect {
-    struct pixrectops* pr_ops;
+    struct pixrectops *pr_ops;
     struct pr_size pr_size;
     int pr_depth;
-    struct mpr_data* pr_data;	/* work-alike only handles memory pixrects */
-    };
+    struct mpr_data *pr_data;	/* work-alike only handles memory pixrects */
+};
 
 struct mpr_data {
     int md_linebytes;
-    unsigned char* md_image;	/* note, byte not short -- avoid pr_flip() */
+    unsigned char *md_image;	/* note, byte not short -- avoid pr_flip() */
     struct pr_pos md_offset;
     short md_primary;
     short md_flags;
-    };
+};
 
 typedef struct {
     int type;
     int length;
-    unsigned char* map[3];
-    } colormap_t;
+    unsigned char *map[3];
+} colormap_t;
 
 /* And the routine definitions. */
 
-struct pixrect* mem_create ARGS(( int w, int h, int depth ));
-void mem_free ARGS(( struct pixrect* p ));
+struct pixrect *mem_create ARGS((int w, int h, int depth));
+void mem_free ARGS((struct pixrect * p));
 
-int pr_dump ARGS(( struct pixrect* p, FILE* out, colormap_t* colormap, int type, int copy_flag ));
+int pr_dump
+ARGS((struct pixrect * p, FILE * out, colormap_t * colormap, int type, int copy_flag));
 
-int pr_load_header ARGS(( FILE* in, struct rasterfile* hP ));
+int pr_load_header ARGS((FILE * in, struct rasterfile * hP));
 
-int pr_load_colormap ARGS(( FILE* in, struct rasterfile* hP, colormap_t* colormap ));
+int pr_load_colormap ARGS((FILE * in, struct rasterfile * hP, colormap_t * colormap));
 
-struct pixrect* pr_load_image ARGS(( FILE* in, struct rasterfile* hP, colormap_t* colormap ));
+struct pixrect *pr_load_image ARGS((FILE * in, struct rasterfile * hP, colormap_t * colormap));
 
 #endif /*_RAST_H_*/

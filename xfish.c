@@ -125,6 +125,7 @@ bubble *binfo;			/* bubble info structures, allocated
 				 * dynamically  */
 fish *finfo;			/* fish info structures, allocated dynamically */
 Display *Dpy;
+Window root_window;
 XImage *xfishA[NUM_FISH][3];	/* fish pixmaps (1 is left-fish, 2 is
 				 * right-fish) */
 XImage *xfishB[NUM_FISH][3];	/* fish pixmaps (1 is left-fish, 2 is
@@ -1200,7 +1201,7 @@ init_pixmap()
 	    i = DisplayPlanes(Dpy, screen);
 
 	    xfishA[k][2] =
-		XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+		XGetImage(Dpy, root_window, 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
 
 	    p = (caddrt) xfishRasterA[k];
 
@@ -1212,7 +1213,7 @@ init_pixmap()
 	    }
 
 	    xfishB[k][2] =
-		XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+		XGetImage(Dpy, root_window, 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
 
 	    p = (caddrt) xfishRasterB[k];
 
@@ -1224,7 +1225,7 @@ init_pixmap()
 	    }
 
 	    xfishA[k][1] =
-		XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+		XGetImage(Dpy, root_window, 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
 
 	    for (j = 0; j < rheight[k]; j++) {
 		for (i = 0; i < rwidth[k]; i++) {
@@ -1234,7 +1235,7 @@ init_pixmap()
 	    }
 
 	    xfishB[k][1] =
-		XGetImage(Dpy, DefaultRootWindow(Dpy), 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
+		XGetImage(Dpy, root_window, 0, 0, rwidth[k], rheight[k], 0, ZPixmap);
 
 	    for (j = 0; j < rheight[k]; j++) {
 		for (i = 0; i < rwidth[k]; i++) {
@@ -1349,7 +1350,9 @@ initialize()
     unsigned char *ndata;
     unsigned char *ptr1, *ptr2;
 
-    XGetWindowAttributes(Dpy, DefaultRootWindow(Dpy), &winfo);
+    root_window = VirtualRootWindowOfScreen(DefaultScreenOfDisplay(Dpy));
+
+    XGetWindowAttributes(Dpy, root_window, &winfo);
     width = winfo.width;
     height = winfo.height;
 
@@ -1405,13 +1408,13 @@ initialize()
 	pimage = MakeImage(ndata, Pwidth, Pheight);
 	free((char *) ndata);
 	i = DisplayPlanes(Dpy, screen);
-	PicMap = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), Pwidth, Pheight, i);
+	PicMap = XCreatePixmap(Dpy, root_window, Pwidth, Pheight, i);
     }
 
     if ((DoubleBuf) || (picname[0] != '\0')) {
 	i = DisplayPlanes(Dpy, screen);
-	PixBuf = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), 500, 500, i);
-	ClipBuf = XCreatePixmap(Dpy, DefaultRootWindow(Dpy), 500, 500, 1);
+	PixBuf = XCreatePixmap(Dpy, root_window, 500, 500, i);
+	ClipBuf = XCreatePixmap(Dpy, root_window, 500, 500, 1);
 	c0gc = XCreateGC(Dpy, ClipBuf, 0, NULL);
 	XSetForeground(Dpy, c0gc, (unsigned long) 0);
 	XSetFunction(Dpy, c0gc, GXcopy);
@@ -1424,7 +1427,7 @@ initialize()
     attr.background_pixel = cmap[0];
 
     if ((!DoClipping) || (picname[0] != '\0')) {
-	wid = XCreateWindow(Dpy, DefaultRootWindow(Dpy),
+	wid = XCreateWindow(Dpy, root_window,
 			    1, 1, width - 2, height - 2, 0,
 			    CopyFromParent, CopyFromParent, CopyFromParent,
 			    CWBackPixel | CWOverrideRedirect, &attr);
@@ -1432,7 +1435,7 @@ initialize()
 	if (!wid)
 	    msgdie("XCreateWindow failed");
     } else {
-	wid = DefaultRootWindow(Dpy);
+	wid = root_window;
 	XClearArea(Dpy, wid, 0, 0, 0, 0, False);
     }
 

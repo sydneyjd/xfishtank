@@ -22,10 +22,13 @@ main()
     char prefix[BUFSIZ];
     int i;
 
-    fp = fopen("FishList", "r");
+    fp = fopen("FishList.local", "r");
     if (fp == NULL) {
-	fprintf(stderr, "ERROR: cannot open FishList for read!\n");
-	exit(1);
+	fp = fopen("FishList", "r");
+	if (fp == NULL) {
+	    fprintf(stderr, "ERROR: cannot open FishList for read!\n");
+	    exit(1);
+	}
     }
     fscanf(fp, "%d\n", &numfish);
 
@@ -36,8 +39,7 @@ main()
 
     for (i = 0; i < numfish; i++) {
 	fscanf(fp, "%s\n", prefix);
-	fishlist[i] = (char *) malloc(strlen(prefix) + 1);
-	strcpy(fishlist[i], prefix);
+	fishlist[i] = strdup(prefix);
     }
     fclose(fp);
 

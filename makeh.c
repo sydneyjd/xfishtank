@@ -3,12 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+int numfish;
+char **fishlist;
+
+void prfish(char *t, char *f)
+{
+    int i;
+
+    printf("%s = {\n", t);
+    for (i = 0; i < numfish; i++)
+	printf("\t%s_%s,\n", fishlist[i], f);
+    printf("};\n\n");
+}
+
 main()
 {
     FILE *fp;
-    int numfish;
     char prefix[BUFSIZ];
-    char **fishlist;
     int i;
 
     fp = fopen("FishList", "r");
@@ -30,63 +41,19 @@ main()
     }
     fclose(fp);
 
-    for (i = 0; i < numfish; i++) {
+    for (i = 0; i < numfish; i++)
 	printf("#include \"%s.h\"\n", fishlist[i]);
-    }
     printf("\n");
 
-    printf("int rwidth[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_width,\n", fishlist[i]);
-    }
-    printf("};\n\n");
+    prfish("int rwidth[]", "width");
+    prfish("int rheight[]", "height");
+    prfish("int rcolors[]", "colors");
+    prfish("int rback[]", "back");
+    prfish("int *rreds[]", "reds");
+    prfish("int *rgreens[]", "greens");
+    prfish("int *rblues[]", "blues");
+    prfish("unsigned char *xfishRasterA[]", "rasterA");
+    prfish("unsigned char *xfishRasterB[]", "rasterB");
 
-    printf("int rheight[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_height,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("int rcolors[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_colors,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("int rback[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_back,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("int *rreds[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_reds,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("int *rgreens[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_greens,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("int *rblues[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_blues,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("unsigned char *xfishRasterA[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_rasterA,\n", fishlist[i]);
-    }
-    printf("};\n\n");
-
-    printf("unsigned char *xfishRasterB[] = {\n");
-    for (i = 0; i < numfish; i++) {
-	printf("\t%s_rasterB,\n", fishlist[i]);
-    }
-    printf("};\n\n");
     exit(0);
 }

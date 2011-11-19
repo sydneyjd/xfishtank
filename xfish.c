@@ -1334,6 +1334,18 @@ init_signals()
 }
 
 
+set_window_type_desktop(Display *dpy, Window wid)
+{
+    Atom _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_DESKTOP;
+
+    _NET_WM_WINDOW_TYPE = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
+    _NET_WM_WINDOW_TYPE_DESKTOP = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
+
+    XChangeProperty(dpy, wid, _NET_WM_WINDOW_TYPE, XA_ATOM, 32,
+		    PropModeReplace, (unsigned char *) &_NET_WM_WINDOW_TYPE_DESKTOP, 1);
+}
+
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 Variety of initialization calls, including getting the window up and running.
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1422,11 +1434,10 @@ initialize()
 	XSetFunction(Dpy, cpgc, GXor);
     }
 
-
     attr.override_redirect = True;
     attr.background_pixel = cmap[0];
 
-    if ((!DoClipping) || (picname[0] != '\0')) {
+    if (!DoClipping || picname[0] != '\0') {
 	wid = XCreateWindow(Dpy, root_window,
 			    1, 1, width - 2, height - 2, 0,
 			    CopyFromParent, CopyFromParent, CopyFromParent,
@@ -1434,6 +1445,7 @@ initialize()
 
 	if (!wid)
 	    msgdie("XCreateWindow failed");
+	set_window_type_desktop(Dpy, wid);
     } else {
 	wid = root_window;
 	XClearArea(Dpy, wid, 0, 0, 0, 0, False);
@@ -1464,7 +1476,7 @@ initialize()
     init_pixmap();
     init_signals();
 
-    if ((!DoClipping) || (picname[0] != '\0')) {
+    if (!DoClipping || picname[0] != '\0') {
 	XStoreName(Dpy, wid, pname);
 
 	xsh.flags = USSize | USPosition | PPosition | PSize;

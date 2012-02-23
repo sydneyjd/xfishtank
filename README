@@ -1,3 +1,22 @@
+I've always liked this little program. An aquarium for your screen, with
+fish swimming around on your desktop. It traces its history to the the xfish
+program, written around 1987 by John Bradley. Jonathan Greenblatt ported it
+to X11 in 1988 and it made its way into the contributed program collection
+by about X11R6. Eric Bina worked on the color maps and root window support
+and added a lot more fish around 1992. TJ Phan added Truecolor support in
+1996. Vincent Renardias contributed a man page, and Joey Hess packaged it up
+for Debian.
+
+When I learned xfishtank had been orphaned, I decided to adopt it, or at
+least give it a decent home. I've tried to reflect the history in the git
+log. If you know of intermediate versions not represented here, send them
+along.
+
+Pushed to github Feb 2012 by Jim Rees.
+
+Here's the README as I found it.  Also see README.debian for more recent
+history.
+
 
        ********************** FUN WITH FISH *********************
 

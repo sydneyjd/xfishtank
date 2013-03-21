@@ -1,9 +1,8 @@
-       EXTRA_INCLUDES = -I. -I./fishmaps
+ EXTRA_INCLUDES = -I./fishmaps
 LOCAL_LIBRARIES = $(XLIB)
         DEPLIBS = $(DEPXLIB)
   SYS_LIBRARIES = -lm
-    CDEBUGFLAGS = -g
-    MANSRCSUFFIX=1x
+   MANSRCSUFFIX = 1x
 
            SRCS = xfish.c medcut.c read.c
            OBJS = xfish.o medcut.o read.o
@@ -14,6 +13,8 @@ xfishy.h: makeh FishList
 	./makeh > xfishy.h
 
 xfish.o: xfishy.h
+
+install:: install.man
 
 clean::
 	$(RM) makeh xfishy.h

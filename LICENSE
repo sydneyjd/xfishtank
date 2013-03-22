@@ -1,0 +1,37 @@
+This package assembled by Jim Rees. All of my contributions are licensed
+under the same terms as the license at the bottom of this page.
+
+License notices on the Debian version from which this version is derived:
+
+This package was put together by Joey Hess <joeyh@debian.org>, using
+sources from:
+	ftp://ftp.x.org/R5contrib/xfishtank.tar.Z
+
+I tracked down John Bradley <bradley@trilon.com>, who wrote the xfish
+program back around 1987, that xfishtank is derived from. He stated the
+following copyright:
+
+> It doesn't have one - do whatever you'd like with it.  Enjoy!
+>
+> --jhb
+
+Copyright (c) 1988-92                 (xfishtank)
+                    Jonathan Greenblatt
+                    Dave Lemke
+                    Eric Bina
+
+Copyright (c) 1996	Vincent Renardias (manpage)
+
+                  All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of the author not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
+
+This program is distributed in the hope that it will be "playable",
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

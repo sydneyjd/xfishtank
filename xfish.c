@@ -171,12 +171,14 @@ int argc;
 char **argv;
 {
     int c, i;
+    const char *display = getenv("DISPLAY");
     extern int optind;
     extern char *optarg;
     extern double atof();
 
     pname = argv[0];
-    strncpy(sname, getenv("DISPLAY"), sizeof(sname) - 1);
+    if (display != NULL)
+	strncpy(sname, display, sizeof(sname) - 1);
     strcpy(cname, "MediumAquamarine");
 
     while ((c = getopt(argc, argv, "dDob:C:c:p:m:f:i:r:s")) != EOF) {

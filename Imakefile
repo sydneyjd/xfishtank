@@ -1,11 +1,11 @@
  EXTRA_INCLUDES = -I./fishmaps
 LOCAL_LIBRARIES = $(XLIB)
         DEPLIBS = $(DEPXLIB)
-  SYS_LIBRARIES = -lm
+  SYS_LIBRARIES = -lImlib2 -lm
    MANSRCSUFFIX = 1x
 
-           SRCS = xfish.c medcut.c read.c
-           OBJS = xfish.o medcut.o read.o
+           SRCS = xfish.c medcut.c
+           OBJS = xfish.o medcut.o
 
 ComplexProgramTarget(xfishtank)
 

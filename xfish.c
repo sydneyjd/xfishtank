@@ -171,7 +171,7 @@ parse(argc, argv)
 int argc;
 char **argv;
 {
-    int c, i;
+    int c;
     const char *display = getenv("DISPLAY");
     extern int optind;
     extern char *optarg;
@@ -654,6 +654,7 @@ int x, y, d;
 }
 
 
+void
 erasebubble(b, s)
 bubble *b;
 int s;
@@ -662,6 +663,7 @@ int s;
 }
 
 
+void
 putbubble(b, s, c)
 bubble *b;
 int s;
@@ -838,7 +840,6 @@ The fish colors are coded in xfishy.h as a trio of tables.
 void
 init_colormap()
 {
-    FILE *fp;
     int i, j, cnt;
     int NumCells;
     XColor hdef, edef;
@@ -860,22 +861,22 @@ init_colormap()
     Pcnt = 0;
     if (picname[0] != '\0') {
 	Imlib_Image image = imlib_load_image(picname);
-	if(image == NULL){
+	if (image == NULL) {
 	    fprintf(stderr, "Cannot load image %s\n", picname);
-	    picname[0]=0;
+	    picname[0] = 0;
 	} else {
 	    imlib_context_set_image(image);
 	    imlib_context_set_display(Dpy);
 	    imlib_context_set_visual(DefaultVisual(Dpy, screen));
 	    Pwidth = imlib_image_get_width();
 	    Pheight = imlib_image_get_height();
-	    DATA32* image_data = imlib_image_get_data_for_reading_only();
+	    DATA32 *image_data = imlib_image_get_data_for_reading_only();
 	    Pdata = malloc(4 * Pwidth * Pheight);
-	    for(i=0;i<Pwidth * Pheight;i++){
-		Pdata[4 * i] = image_data[i]&0xFF;
-		Pdata[4 * i + 1] = image_data[i]&0xFF00;
-		Pdata[4 * i + 2] = image_data[i]&0xFF0000;
-		Pdata[4 * i + 3] = image_data[i]&0xFF000000;
+	    for (i = 0; i < Pwidth * Pheight; i++) {
+		Pdata[4 * i] = image_data[i] & 0xFF;
+		Pdata[4 * i + 1] = image_data[i] & 0xFF00;
+		Pdata[4 * i + 2] = image_data[i] & 0xFF0000;
+		Pdata[4 * i + 3] = image_data[i] & 0xFF000000;
 	    }
 	    Pcnt = ColorUsage(Pdata, Pwidth, Pheight, colrs);
 	}
@@ -1319,11 +1320,9 @@ Initialize signal so that SIGUSR1 causes secure mode to toggle.
 void
 init_signals()
 {
-    int ret;
-#ifdef linux
+#if defined(linux)
     signal(SIGUSR1, toggle_secure);
-#else
-#if defined(MOTOROLA) || defined(SCO)
+#elif defined(MOTOROLA) || defined(SCO)
     sigset(SIGUSR1, toggle_secure);
 #else
     struct sigvec vec;
@@ -1333,22 +1332,15 @@ init_signals()
     vec.sv_onstack = 0;
 
 #ifndef hpux
-    ret = sigvec(SIGUSR1, &vec, &vec);
-#if 0
-    if (ret != 0) {
-	fprintf(stderr, "sigvec call failed\n");
-    } else {
-	fprintf(stderr, "sigvec call OK\n");
-    }
-#endif
+    sigvec(SIGUSR1, &vec, &vec);
 #else
     sigvector(SIGUSR1, &vec, &vec);
 #endif
-#endif /* MOTOROLA */
-#endif /* LINUX */
+#endif
 }
 
 
+void
 set_window_type_desktop(Display *dpy, Window wid)
 {
     Atom _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_DESKTOP;
@@ -1371,11 +1363,8 @@ initialize()
     XSetWindowAttributes attr;
     XGCValues vals;
     XSizeHints xsh;
-    XImage *pimage;
-    int i, size, cnt;
+    int i;
     char *p;
-    unsigned char *ndata;
-    unsigned char *ptr1, *ptr2;
 
     root_window = VirtualRootWindowOfScreen(DefaultScreenOfDisplay(Dpy));
 
@@ -1425,7 +1414,7 @@ initialize()
 	PicMap = XCreatePixmap(Dpy, root_window, Pwidth, Pheight, DisplayPlanes(Dpy, screen));
 	imlib_context_set_drawable(PicMap);
 	imlib_render_image_on_drawable(0, 0);
-		
+
     }
 
     if ((DoubleBuf) || (picname[0] != '\0')) {

@@ -44,6 +44,7 @@
 #include <signal.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <Imlib2.h>
 
 #include "vroot.h"
 #include "xfishy.h"
@@ -858,12 +859,24 @@ init_colormap()
 
     Pcnt = 0;
     if (picname[0] != '\0') {
-	fp = fopen(picname, "r");
-	if (fp == NULL) {
-	    fprintf(stderr, "Cannot open picture %s for reading\n", picname);
+	Imlib_Image image = imlib_load_image(picname);
+	if(image == NULL){
+	    fprintf(stderr, "Cannot load image %s\n", picname);
+	    picname[0]=0;
 	} else {
-	    Pdata = ReadBitmap(fp, &Pwidth, &Pheight, colrs);
-	    fclose(fp);
+	    imlib_context_set_image(image);
+	    imlib_context_set_display(Dpy);
+	    imlib_context_set_visual(DefaultVisual(Dpy, screen));
+	    Pwidth = imlib_image_get_width();
+	    Pheight = imlib_image_get_height();
+	    DATA32* image_data = imlib_image_get_data_for_reading_only();
+	    Pdata = malloc(4 * Pwidth * Pheight);
+	    for(i=0;i<Pwidth * Pheight;i++){
+		Pdata[4 * i] = image_data[i]&0xFF;
+		Pdata[4 * i + 1] = image_data[i]&0xFF00;
+		Pdata[4 * i + 2] = image_data[i]&0xFF0000;
+		Pdata[4 * i + 3] = image_data[i]&0xFF000000;
+	    }
 	    Pcnt = ColorUsage(Pdata, Pwidth, Pheight, colrs);
 	}
     }
@@ -1370,7 +1383,6 @@ initialize()
     width = winfo.width;
     height = winfo.height;
 
-    picname[0] = '\0';
     if ((p = XGetDefault(Dpy, pname, "BubbleLimit")) != NULL)
 	blimit = atoi(p);
     if ((p = XGetDefault(Dpy, pname, "ColorLimit")) != NULL)
@@ -1409,20 +1421,11 @@ initialize()
     init_colormap();
 
     if (picname[0] != '\0') {
-	size = Pwidth * Pheight;
-	ndata = (unsigned char *) malloc(size);
-	ptr1 = Pdata;
-	ptr2 = ndata;
-	cnt = 1;
-	for (i = 0; i < size; i++) {
-	    *ptr2 = cmap[cnt + (int) (*ptr1)];
-	    ptr1++;
-	    ptr2++;
-	}
-	pimage = MakeImage(ndata, Pwidth, Pheight);
-	free((char *) ndata);
-	i = DisplayPlanes(Dpy, screen);
-	PicMap = XCreatePixmap(Dpy, root_window, Pwidth, Pheight, i);
+	imlib_context_set_colormap(colormap);
+	PicMap = XCreatePixmap(Dpy, root_window, Pwidth, Pheight, DisplayPlanes(Dpy, screen));
+	imlib_context_set_drawable(PicMap);
+	imlib_render_image_on_drawable(0, 0);
+		
     }
 
     if ((DoubleBuf) || (picname[0] != '\0')) {
@@ -1488,7 +1491,6 @@ initialize()
 	XSetNormalHints(Dpy, wid, &xsh);
 
 	if (picname[0] != '\0') {
-	    XPutImage(Dpy, PicMap, gc, pimage, 0, 0, 0, 0, Pwidth, Pheight);
 	    XSetWindowBackgroundPixmap(Dpy, wid, PicMap);
 	}
 

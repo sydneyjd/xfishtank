@@ -14,6 +14,13 @@ along.
 
 Pushed to github Feb 2012 by Jim Rees.
 
+Build and install should go something like this:
+tar xfvz xfishtank.tar.gz (or git clone the repo)
+cd xfishtank
+xmkmf
+make
+sudo make install
+
 Here's the README as I found it.  Also see README.debian for more recent
 history.
 

@@ -6,31 +6,16 @@
 int numfish;
 char **fishlist;
 
-void prfish(char *t, char *f)
-{
-    int i;
+char *get_fishname(char *path);
+void prfish(char *t, char *f);
 
-    printf("%s = {\n", t);
-    for (i = 0; i < numfish; i++)
-	printf("\t%s_%s,\n", fishlist[i], f);
-    printf("};\n\n");
-}
-
-main()
+int
+main(int ac, char *av[])
 {
-    FILE *fp;
     char prefix[BUFSIZ];
     int i;
 
-    fp = fopen("FishList.local", "r");
-    if (fp == NULL) {
-	fp = fopen("FishList", "r");
-	if (fp == NULL) {
-	    fprintf(stderr, "ERROR: cannot open FishList for read!\n");
-	    exit(1);
-	}
-    }
-    fscanf(fp, "%d\n", &numfish);
+    numfish = ac - 1;
 
     printf("/*\n * Warning, this header file is automatically generated\n */\n");
 
@@ -38,14 +23,11 @@ main()
     fishlist = (char **) malloc(numfish * sizeof(char *));
 
     for (i = 0; i < numfish; i++) {
-	fscanf(fp, "%s\n", prefix);
-	fishlist[i] = strdup(prefix);
+	fishlist[i] = get_fishname(av[i + 1]);
     }
-    fclose(fp);
 
     for (i = 0; i < numfish; i++)
 	printf("#include \"%s.h\"\n", fishlist[i]);
-    printf("\n");
 
     prfish("int rwidth[]", "width");
     prfish("int rheight[]", "height");
@@ -58,4 +40,35 @@ main()
     prfish("unsigned char *xfishRasterB[]", "rasterB");
 
     exit(0);
+}
+
+char *
+get_fishname(char *path)
+{
+    char *s0;
+    int slen;
+
+    path = strdup(path);
+
+    /* If it has a "/", chop off everything before that */
+    s0 = strrchr(path, '/');
+    s0 = s0 ? s0 + 1 : path;
+
+    /* If it ends with ".h", chop that off */
+    slen = strlen(s0);
+    if (slen > 2 && !strcmp(s0 + slen - 2, ".h"))
+	*(s0 + slen - 2) = '\0';
+
+    return s0;
+}
+
+void
+prfish(char *t, char *f)
+{
+    int i;
+
+    printf("\n%s = {\n", t);
+    for (i = 0; i < numfish; i++)
+	printf("\t%s_%s,\n", fishlist[i], f);
+    printf("};\n");
 }

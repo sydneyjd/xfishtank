@@ -9,8 +9,8 @@ LOCAL_LIBRARIES = $(XLIB)
 
 ComplexProgramTarget(xfishtank)
 
-xfishy.h: makeh FishList
-	./makeh > xfishy.h
+xfishy.h: makeh
+	./makeh fishmaps/?*.h > xfishy.h
 
 xfish.o: xfishy.h
 
